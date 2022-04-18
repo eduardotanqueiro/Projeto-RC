@@ -15,6 +15,7 @@
 void init(int porto_bolsa, int porto_config, char* config_file);
 void handle_client(int fd);
 int handle_admin();
+void erro(char *s);
 
 int add_user(char* args,struct sockaddr addr);
 int delete_user(char* args,struct sockaddr addr);
@@ -24,10 +25,7 @@ void wait_clients();
 void sigint_client();
 
 
-void erro(char *s) {
-	perror(s);
-	exit(1);
-}
+
 
 #define INITIAL_REFRESH_TIME 2
 

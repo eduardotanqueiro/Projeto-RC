@@ -165,3 +165,8 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     if ( bind(fd_config,(struct sockaddr*)&addr_config,sizeof(addr_config)) < 0)
 	  erro("na funcao bind config");
 }
+
+void erro(char *s) {
+	perror(s);
+	exit(1);
+}

@@ -1,4 +1,4 @@
-#include <header.h>
+#include "header.h"
 
 void wait_clients(){
    
@@ -45,7 +45,7 @@ void wait_clients(){
                 close(client_fd); //???
             }
 
-            printf("[MAIN] Looping\n");
+            //printf("[MAIN] Looping\n");
 
         }
 
