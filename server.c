@@ -59,7 +59,7 @@ int main(int argc, char** argv){
     shmdt(market_list);
     shmctl(shmid, IPC_RMID, NULL);
 
-    return 0;
+    exit(0);
 }
 
 void init(int porto_bolsa, int porto_config, char* cfg){
@@ -81,9 +81,11 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     
     tok = strtok(buf,"/");
     strcpy(admin.username,tok);
+
     tok = strtok(NULL, "\n");
     strcpy(admin.password,tok);
-    admin.password[ strlen(admin.password) - 1] = 0;
+    
+
 
     //Read Number Users
     fscanf(initFile,"%d\n",&number_users);
@@ -98,6 +100,7 @@ void init(int porto_bolsa, int porto_config, char* cfg){
 
         fscanf(initFile,"%30[^;];%30[^;];%d\n",&users_list[i].username[0],&users_list[i].password[0],&users_list[i].balance);
     }
+
 
     //Clean the empty spots for users in the userlist
     for(int i = number_users;i<10;i++){

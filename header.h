@@ -12,12 +12,14 @@
 
 #include <sys/shm.h>
 #include <sys/ipc.h>
+#include <semaphore.h>
 
 void init(int porto_bolsa, int porto_config, char* config_file);
 void handle_client(int fd);
 int handle_admin();
 void erro(char *s);
 
+//Admin
 int add_user(char* args,struct sockaddr addr);
 int delete_user(char* args,struct sockaddr addr);
 int list(struct sockaddr addr);
@@ -25,6 +27,10 @@ int refresh(char* args,struct sockaddr addr);
 void wait_clients();
 void sigint_client();
 
+//User
+int client_login(int fd);
+int buy(char* args, int fd);
+int sell(char* args, int fd);
 
 
 
@@ -54,6 +60,16 @@ typedef struct{
     stock stock_list[3];
 
 }market;
+
+typedef struct{
+
+    //TODO ACABAR A SHARED MEMORY
+    sem_t *shm_rdwr;
+    int refresh_time;
+    int number_users;
+    user users_list[10];
+
+} shm_vars;
 
 
 int refresh_time;

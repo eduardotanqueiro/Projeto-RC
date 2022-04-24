@@ -62,28 +62,19 @@ void sigint_client(){
     //clear client socket ??
 }
 
-void client_login(){
-    char buffer[BUFSIZ];
-    int recv_len;
-    char comando[50];
+int client_login(int fd){
+
     char* token;
-
-    struct sockaddr user_connect;
-    socklen_t slen = sizeof(user_connect);
-
-    //NETCAT CONNECTING STRINGS (TO IGNORE)
-    for(int k = 0;k<5;k++){
-        recvfrom(fd_config, buffer, BUFSIZ, 0, (struct sockaddr *) &user_connect, (socklen_t *)&slen);
-    }
+    char buffer[BUFSIZ];
 
 
     do{
         char username[31];
         char *password;
-        
+
         memset(buffer,0,BUFSIZ);
-        sendto(fd_config,"Introduza as credenciais no formato Username/Password: ",56,0,(struct sockaddr*)&user_connect,(socklen_t )slen);
-        recvfrom(fd_config, buffer, BUFSIZ, 0, (struct sockaddr *) &user_connect, (socklen_t *)&slen );
+        write(fd,"Introduza as credenciais no formato Username/Password: ",56);
+        read(fd,buffer,BUFSIZ);
         buffer[strlen(buffer) - 1] = 0;
 
         token = strtok(buffer,"/");
@@ -94,71 +85,40 @@ void client_login(){
         printf("[SERVER] Attempted user:%s login!\n", username);
 
         if(!strcmp(username, "QUIT")){
-            printf("[USER] A fechar processo do user:%s\n", username);
-            return 0;
+            printf("[USER] A fechar processo do user sem login: %d\n", fd);
+            return 1;
         }
 
-        bool flag = false; // check if user exists (true == yes, false == no)
+        bool flag = false; // check if login succeded
         for(int i = 0; i < 10; i++){
             if(strcmp(username, users_list[i].username) == 0 && strcmp(password, users_list[i].password) == 0){
-                sendto(fd_config, "Login bem sucedido!\n", 20, 0, (struct sockaddr*)&user_connect,(socklen_t) slen);
                 flag = true;
                 break;
             }
-            else if(strcmp(username, users_list[i].username) == 0 && strcmp(password, users_list[i].password) != 0){
-                sendto(fd_config, "Password errada!\n", 34, 0, (struct sockaddr*)&user_connect,(socklen_t) slen);
-                flag = true;
-            }
+
         }
 
-        if(!flag){
-            sendto(fd_config, "User não existe!\n", 34, 0, (struct sockaddr*)&user_connect,(socklen_t) slen);
-        }
+        if( flag == true ) //Login Succeded 
+            break;
+
+        else
+            write(fd,"Username ou password errado(s)!\n",33);
 
     }while(1);
 
     printf("[USER] Login Bem Sucedido\n");
+    write(fd,"Login Bem Sucedido\n",20);
 
-    //MENU
-    while( strcmp(comando,"QUIT") != 0){
+    return 0;
 
-        //receive messagem from user console
-        printf("\n[USER] Waiting for user command\n");
-        memset(buffer,0,BUFSIZ);
-
-        if( (recv_len = recvfrom(fd_config, buffer, BUFSIZ, 0, (struct sockaddr *) &user_connect, (socklen_t *)&slen)) == -1) {
-            erro("Erro no recvfrom\n");
-            return 1;
-        }
-
-        //Get Command
-
-        char *resto;
-        memset(comando,0,strlen(comando));
-        
-        token = strtok(buffer, " \n");
-        strcpy(comando,token);
-
-        resto = strtok(NULL,"");
-
-        if(!strcmp(comando, "QUIT_SERVER"))
-            return 10;
-
-        else if(!strcmp(comando, "BUY"))
-            buy(resto, user_connect);
-
-        else if(!strcmp(comando, "SELL"))
-            sell(resto, user_connect);
-
-        // TODO menu
 }
 
-int buy(char* args, struct sockaddr addr){
+int buy(char* args, int fd){
     printf("Bought!\n");
     return 0;
 }
 
-int sell(char* args, struct sockaddr addr){
+int sell(char* args, int fd){
     printf("Sold!\n");
     return 0;
 }
@@ -166,24 +126,42 @@ int sell(char* args, struct sockaddr addr){
 void handle_client(int fd){
 
     char buffer[BUFSIZ];
-    int n = -1;
 
-    //  TODO
-    //  -LOGIN
-    //  -MENU
+    if ( client_login(fd) == 0){
 
-    client_login();
 
-    do{
-        memset(buffer,0,BUFSIZ);
-        n = read(fd,buffer,BUFSIZ);
-        
-        if(n == 0)
-            break;
+        char comando[50];
+        char* token;
 
-        buffer[strlen(buffer)-1] = 0;
-        printf("[CLIENT] USER %d: %s\n",fd,buffer);
-    }while( strcmp( buffer, "SAIR") != 0);
+        //MENU
+        while( strcmp(comando,"QUIT") != 0){
 
-    printf("[CLIENT] Closing client\n");
+            //receive messagem from user console/ SEND MENU TO CLIENT
+            printf("\n[USER] Waiting for user command\n");
+            memset(buffer,0,BUFSIZ);
+
+            read(fd,buffer,BUFSIZ);
+
+            //Get Command
+
+            char *resto;
+            memset(comando,0,strlen(comando));
+            
+            token = strtok(buffer, " \n");
+            strcpy(comando,token);
+
+            resto = strtok(NULL,"");
+
+            if(!strcmp(comando, "BUY"))
+                buy(resto, fd);
+
+            else if(!strcmp(comando, "SELL"))
+                sell(resto, fd);
+
+            // TODO resto do menu
+        }
+
+        printf("[USER] User left\n");
+    }
+
 }

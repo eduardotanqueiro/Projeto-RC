@@ -16,7 +16,7 @@ int handle_admin(){
         recvfrom(fd_config, buffer, BUFSIZ, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen);
     }
 
-
+    printf("Admin: %s--%s\n",admin.username,admin.password);
     //LOGIN (TODO -> FUNCAO PARA ISTO)
     do{
         char username[31];
@@ -27,13 +27,16 @@ int handle_admin(){
         recvfrom(fd_config, buffer, BUFSIZ, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen );
         buffer[strlen(buffer) - 1] = 0;
 
-        token = strtok(buffer,"/");
+        token = strtok(buffer,"/\n");
         strcpy(username,token);
 
         password = strtok(NULL,"/\n");
 
-        printf("[SERVER] Attempted admin login!\n");
-
+        if( password != NULL){
+            password[strlen(password)] = '\0';
+            printf("[SERVER] Attempted admin login!\n"); 
+            printf("[SERVER] %d--%d\n",strcmp(username,admin.username),strcmp(password,admin.password)); //DEBUG
+        }
 
         if( (strcmp(username,admin.username) == 0) && (strcmp(password,admin.password) == 0 ) ){
             sendto(fd_config,"Login bem sucedido!\n",20,0,(struct sockaddr*)&admin_connect,(socklen_t )slen);
@@ -63,15 +66,16 @@ int handle_admin(){
             return 1;
         }
 
-        //Get Command
+        //Get Command -- ERRO AQUI, VERIFICAR SE O INPUT ESTÁ CORRETO, PODE DAR SEGFAULT!
 
-        char *resto;
-        memset(comando,0,strlen(comando));
+        char *resto = "";
+        memset(comando,0,sizeof(comando));
         
         token = strtok(buffer, " \n");
         strcpy(comando,token);
 
-        resto = strtok(NULL,"");
+        resto = strtok(NULL,"\n");
+
 
 
         if( !strcmp(comando,"QUIT_SERVER"))
@@ -99,7 +103,28 @@ int handle_admin(){
 
 int add_user(char* args, struct sockaddr addr){
     printf("[ADMIN] adicionar user %s\n",args);
-    return 0;
+    socklen_t slen = sizeof(addr);
+
+    char *tok,username[31],password[31];
+    int balance;
+    //TODO ACABAR
+
+
+    if(args != NULL){
+
+        tok = strtok(args," ");
+        strcpy(username,tok);
+
+        tok = strtok(NULL, " ");
+        strcpy(password,tok);
+
+        return 0;
+    }
+    else{
+        sendto(fd_config,"Invalid User Command Format!\n",30,0,(struct sockaddr*)&addr,(socklen_t) slen);
+        return 1;
+    }
+
 }
 
 int delete_user(char* args, struct sockaddr addr){
@@ -107,23 +132,24 @@ int delete_user(char* args, struct sockaddr addr){
     printf("[ADMIN] deleting user %s\n",args);
     socklen_t slen = sizeof(addr);
     
-    for(int i = 0;i<number_users;i++){
+    if(args != NULL){
+        for(int i = 0;i<number_users;i++){
 
-        if( (strcmp(users_list[i].username,"\0") != 0) && (!strcmp(users_list[i].username,args)) ){
-            
-            memset(users_list[i].username,0,31);
-            memset(users_list[i].password,0,31);
-            users_list[i].balance = 0;
+            if( (users_list[i].username[0] != 0) && (!strcmp(users_list[i].username,args)) ){
+                
+                memset(users_list[i].username,0,31);
+                memset(users_list[i].password,0,31);
+                users_list[i].balance = 0;
 
-            printf("[ADMIN] User deleted!\n");
-            sendto(fd_config,"User deleted!\n",15,0,(struct sockaddr*)&addr,(socklen_t) slen);
+                printf("[ADMIN] User deleted!\n");
+                sendto(fd_config,"User deleted!\n",15,0,(struct sockaddr*)&addr,(socklen_t) slen);
 
-            number_users--;
-            return 0;
+                number_users--;
+                return 0;
+            }
+
         }
-
     }
-
     printf("[ADMIN] Username not found!\n");
     sendto(fd_config,"Error! Username not found!\n",28,0,(struct sockaddr*)&addr,(socklen_t) slen);
     return 1;
@@ -134,9 +160,11 @@ int list(struct sockaddr addr){
     char buffer[BUFSIZ];
     socklen_t slen = sizeof(addr);
 
+    
     for(int i = 0;i<10;i++){
 
-        if( strcmp(users_list[i].username,"\0") != 0){
+        if( users_list[i].username[0] != 0){
+            memset(buffer,0,BUFSIZ);
             snprintf(buffer,BUFSIZ,"Username: %s\n",users_list[i].username);
             sendto(fd_config,buffer,BUFSIZ,0,(struct sockaddr*)&addr,(socklen_t) slen);
 
@@ -150,7 +178,9 @@ int list(struct sockaddr addr){
 int refresh(char* args, struct sockaddr addr){
     printf("[ADMIN] refreshing time %s\n",args);
     
-    refresh_time = atoi(args);
+    if( args != NULL){
+        refresh_time = atoi(args);
+    }
     
     return 0;
 }
