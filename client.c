@@ -5,7 +5,7 @@ void wait_clients(){
     int client_fd;
     struct sockaddr_in client_addr;
     socklen_t client_addr_size;
-    int client_number = 0;
+    int logged_clients = 0; //TODO TEM DE ESTAR PARTILHADO PARA OS PROCESSOS FILHOS ACEDEREM E MUDAREM QUANTOS TAO LOGADOS
 
     fd_set read_set;
     FD_ZERO(&read_set);
@@ -31,10 +31,10 @@ void wait_clients(){
                 client_fd = accept(fd_bolsa,(struct sockaddr *)&client_addr,&client_addr_size);
                 printf("[CLIENT] SERVER: Client aceite\n");
 
-                if(client_number == 10){
+                if(logged_clients == MAX_SIMULTANEOUS_USERS){
                     printf("[CLIENT] SERVER: Reached maximum number of clients!\n");
                 }
-                else if( (childs_pids[client_number++] = fork()) == 0){
+                else if( (childs_pids[logged_clients++] = fork()) == 0){
                     close(fd_bolsa);
                     close(fd_config);
                     handle_client(client_fd);
@@ -46,6 +46,7 @@ void wait_clients(){
             }
 
             //printf("[MAIN] Looping\n");
+            //CHECK SE ALGUM PROCESSO FECHOU, E DIMINUIR O NUMERO CLIENTES LOGADOS  
 
         }
 
@@ -56,7 +57,8 @@ void wait_clients(){
 void sigint_client(){
 
     //clear client processes
-    for(int i = 0;i<10;i++){
+    //TODO fazer outra estrategia, fazer um array com os processos abertos! (GLOBAL)
+    for(int i = 0;i<MAX_CLIENTS;i++){
         kill(SIGINT,childs_pids[i]);
     }
     //clear client socket ??
@@ -90,13 +92,15 @@ int client_login(int fd){
         }
 
         bool flag = false; // check if login succeded
-        for(int i = 0; i < 10; i++){
-            if(strcmp(username, users_list[i].username) == 0 && strcmp(password, users_list[i].password) == 0){
+        
+        pthread_mutex_lock(&SMV->shm_rdwr);
+        for(int i = 0; i < MAX_CLIENTS; i++){
+            if(strcmp(username, SMV->users_list[i].username) == 0 && strcmp(password, SMV->users_list[i].password) == 0){
                 flag = true;
                 break;
             }
-
         }
+        pthread_mutex_unlock(&SMV->shm_rdwr);
 
         if( flag == true ) //Login Succeded 
             break;

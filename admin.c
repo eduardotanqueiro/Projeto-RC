@@ -17,7 +17,8 @@ int handle_admin(){
     }
 
     printf("Admin: %s--%s\n",admin.username,admin.password);
-    //LOGIN (TODO -> FUNCAO PARA ISTO)
+    
+    //LOGIN
     do{
         char username[31];
         char *password;
@@ -118,7 +119,35 @@ int add_user(char* args, struct sockaddr addr){
         tok = strtok(NULL, " ");
         strcpy(password,tok);
 
-        return 0;
+        //TODO split das bolsas e do balance do user
+
+        pthread_mutex_lock(&SMV->shm_rdwr);
+        //check number of users
+        if(SMV->number_users == MAX_CLIENTS){
+            sendto(fd_config,"Maximum number of clients reached!\n",36,0,(struct sockaddr*)&addr,(socklen_t) slen);
+            pthread_mutex_unlock(&SMV->shm_rdwr);
+
+            return 1;
+        }
+
+        for(int i = 0;i<MAX_CLIENTS;i++){
+            if(SMV->users_list[i].username[0] == 0){
+                //empty spot
+                strcpy(SMV->users_list[i].username,username);
+                strcpy(SMV->users_list[i].password,password);
+                //  SMV->users_list[i].balance = balance;
+
+                //TODO adicionar às bolsas a que tem acesso
+
+                pthread_mutex_unlock(&SMV->shm_rdwr);
+
+                sendto(fd_config,"New user created!\n",19,0,(struct sockaddr*)&addr,(socklen_t) slen);
+
+                return 0;
+            }
+        }
+
+        return 1;
     }
     else{
         sendto(fd_config,"Invalid User Command Format!\n",30,0,(struct sockaddr*)&addr,(socklen_t) slen);
@@ -133,22 +162,28 @@ int delete_user(char* args, struct sockaddr addr){
     socklen_t slen = sizeof(addr);
     
     if(args != NULL){
-        for(int i = 0;i<number_users;i++){
+        
+        pthread_mutex_lock(&SMV->shm_rdwr);
+        for(int i = 0;i<MAX_CLIENTS;i++){
 
-            if( (users_list[i].username[0] != 0) && (!strcmp(users_list[i].username,args)) ){
+            if( (SMV->users_list[i].username[0] != 0) && (!strcmp(SMV->users_list[i].username,args)) ){
                 
-                memset(users_list[i].username,0,31);
-                memset(users_list[i].password,0,31);
-                users_list[i].balance = 0;
+                memset(SMV->users_list[i].username,0,31);
+                memset(SMV->users_list[i].password,0,31);
+                SMV->users_list[i].balance = 0;
 
                 printf("[ADMIN] User deleted!\n");
                 sendto(fd_config,"User deleted!\n",15,0,(struct sockaddr*)&addr,(socklen_t) slen);
 
-                number_users--;
+                SMV->number_users--;
+                pthread_mutex_unlock(&SMV->shm_rdwr);
+
                 return 0;
             }
 
         }
+
+        pthread_mutex_unlock(&SMV->shm_rdwr);
     }
     printf("[ADMIN] Username not found!\n");
     sendto(fd_config,"Error! Username not found!\n",28,0,(struct sockaddr*)&addr,(socklen_t) slen);
@@ -160,17 +195,18 @@ int list(struct sockaddr addr){
     char buffer[BUFSIZ];
     socklen_t slen = sizeof(addr);
 
-    
-    for(int i = 0;i<10;i++){
+    pthread_mutex_lock(&SMV->shm_rdwr);
+    for(int i = 0;i<MAX_CLIENTS;i++){
 
-        if( users_list[i].username[0] != 0){
+        if( SMV->users_list[i].username[0] != 0){
             memset(buffer,0,BUFSIZ);
-            snprintf(buffer,BUFSIZ,"Username: %s\n",users_list[i].username);
+            snprintf(buffer,BUFSIZ,"Username: %s\n",SMV->users_list[i].username);
             sendto(fd_config,buffer,BUFSIZ,0,(struct sockaddr*)&addr,(socklen_t) slen);
 
         }
 
     }
+    pthread_mutex_unlock(&SMV->shm_rdwr);
 
     return 0;
 }
@@ -179,8 +215,11 @@ int refresh(char* args, struct sockaddr addr){
     printf("[ADMIN] refreshing time %s\n",args);
     
     if( args != NULL){
-        refresh_time = atoi(args);
+        pthread_mutex_lock(&SMV->shm_rdwr);
+        SMV->refresh_time = atoi(args);
+        pthread_mutex_unlock(&SMV->shm_rdwr);
     }
+    //TODO enviar mensagens pro user e debug se vier NULL
     
     return 0;
 }
