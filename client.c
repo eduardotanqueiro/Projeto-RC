@@ -116,15 +116,7 @@ int client_login(int fd){
 
 }
 
-int buy(char* args, int fd){
-    printf("Bought!\n");
-    return 0;
-}
 
-int sell(char* args, int fd){
-    printf("Sold!\n");
-    return 0;
-}
 
 void handle_client(int fd){
 
@@ -142,7 +134,7 @@ void handle_client(int fd){
         //MENU
         while( strcmp(comando,"SAIR") != 0){
 
-            //receive messagem from user console/ SEND MENU TO CLIENT
+            //receive messagem from user console
             printf("\n[USER] Waiting for user command\n");
             memset(buffer,0,BUFSIZ);
 
@@ -159,21 +151,20 @@ void handle_client(int fd){
             resto = strtok(NULL,"");
 
             if(!strcmp(comando, "COMPRAR"))
-                buy(resto, fd);
+                buy(resto, client_number, fd);
 
             else if(!strcmp(comando, "VENDER"))
-                sell(resto, fd);
+                sell(resto, client_number, fd);
 
             else if(!strcmp(comando,"SUBSCREVER"))
                 subscribe(resto,fd);
 
             else if(!strcmp(comando,"CARTEIRA"))
-                wallet(fd);
+                wallet(client_number,fd);
             
             else if( strcmp(comando,"SAIR") != 0)
                 write(fd,"COMANDO INVALIDO!",18);
 
-            // TODO resto do menu
         }
 
         printf("[USER] User left\n");
@@ -187,5 +178,37 @@ void send_client_markets(int client_number,int fd){
 
 
 
+
+}
+
+int buy(char* args,int client_number, int fd){
+    printf("Bought!\n");
+    return 0;
+}
+
+int sell(char* args,int client_number, int fd){
+    printf("Sold!\n");
+    return 0;
+}
+
+void wallet(int client_number, int fd){
+
+    char buffer[BUFSIZ];
+
+    pthread_mutex_lock(&SMV->shm_rdwr);
+    snprintf(buffer,BUFSIZ,"--- SALDO: %d ---",SMV->users_list[client_number].balance);
+    write(fd,buffer,BUFSIZ);
+
+    for(int i = 0;i< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;i++){
+
+        if( strcmp(SMV->users_list[client_number].user_stocks[i].name,"\0") != 0){
+            snprintf(buffer,BUFSIZ,"--- STOCK: %d | NUMERO STOCKS: %d ---",SMV->users_list[client_number].user_stocks[i].name,SMV->users_list[client_number].user_stocks[i].num_stocks);
+            write(fd,buffer,BUFSIZ);
+        }
+
+    }
+    pthread_mutex_lock(&SMV->shm_rdwr);
+
+    write(fd,"FIM",BUFSIZ);
 
 }

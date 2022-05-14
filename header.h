@@ -37,10 +37,10 @@ void sigint_client();
 //User
 int client_login(int fd);
 void send_client_markets(int client_number, int fd);
-int buy(char* args, int fd);
-int sell(char* args, int fd);
+int buy(char* args, int client_number, int fd);
+int sell(char* args, int client_number, int fd);
 void subscribe(char* args, int fd);
-void wallet(int fd);
+void wallet(int client_number, int fd);
 
 //Bolsa
 void* ManageBolsa();

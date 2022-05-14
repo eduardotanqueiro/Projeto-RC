@@ -263,15 +263,22 @@ void TrySubscribeMarket(){
 
 void AskWalletStatus(){
 
-    
+
     char buffer[BUFSIZ];
     strcpy(buffer,"CARTEIRA");
 
     //Send command to server
     write(fd_server,buffer,BUFSIZ);
 
-    //Receive response
+    memset(buffer,0,BUFSIZ);
 
+    //Receive response
+    while( strcmp(buffer,"FIM") != 0 ){
+        
+        read(fd_server,buffer,BUFSIZ);
+        printf("%s\n",buffer);
+
+    }
 
 }
 
