@@ -1,6 +1,6 @@
 #include "header.h"
 
-void wait_clients(){
+void* wait_clients(){
    
     int client_fd;
     struct sockaddr_in client_addr;
@@ -68,7 +68,7 @@ int client_login(int fd){
 
     char* token;
     char buffer[BUFSIZ];
-
+    int number_client = -1;  // check if login succeded
 
     do{
         char username[31];
@@ -88,21 +88,20 @@ int client_login(int fd){
 
         if(!strcmp(username, "QUIT")){
             printf("[USER] A fechar processo do user sem login: %d\n", fd);
-            return 1;
+            return -1;
         }
 
-        bool flag = false; // check if login succeded
         
         pthread_mutex_lock(&SMV->shm_rdwr);
         for(int i = 0; i < MAX_CLIENTS; i++){
             if(strcmp(username, SMV->users_list[i].username) == 0 && strcmp(password, SMV->users_list[i].password) == 0){
-                flag = true;
+                number_client = i;
                 break;
             }
         }
         pthread_mutex_unlock(&SMV->shm_rdwr);
 
-        if( flag == true ) //Login Succeded 
+        if( number_client != -1 ) //Login Succeded 
             break;
 
         else
@@ -113,7 +112,7 @@ int client_login(int fd){
     printf("[USER] Login Bem Sucedido\n");
     write(fd,"Login Bem Sucedido\n",20);
 
-    return 0;
+    return number_client;
 
 }
 
@@ -130,15 +129,18 @@ int sell(char* args, int fd){
 void handle_client(int fd){
 
     char buffer[BUFSIZ];
+    int client_number = client_login(fd);
 
-    if ( client_login(fd) == 0){
+    if ( client_number != -1){
 
+        //TODO send client available markets and respective multicast groups ips
+        send_client_markets(client_number,fd);
 
         char comando[50];
         char* token;
 
         //MENU
-        while( strcmp(comando,"QUIT") != 0){
+        while( strcmp(comando,"SAIR") != 0){
 
             //receive messagem from user console/ SEND MENU TO CLIENT
             printf("\n[USER] Waiting for user command\n");
@@ -156,16 +158,34 @@ void handle_client(int fd){
 
             resto = strtok(NULL,"");
 
-            if(!strcmp(comando, "BUY"))
+            if(!strcmp(comando, "COMPRAR"))
                 buy(resto, fd);
 
-            else if(!strcmp(comando, "SELL"))
+            else if(!strcmp(comando, "VENDER"))
                 sell(resto, fd);
+
+            else if(!strcmp(comando,"SUBSCREVER"))
+                subscribe(resto,fd);
+
+            else if(!strcmp(comando,"CARTEIRA"))
+                wallet(fd);
+            
+            else if( strcmp(comando,"SAIR") != 0)
+                write(fd,"COMANDO INVALIDO!",18);
 
             // TODO resto do menu
         }
 
         printf("[USER] User left\n");
     }
+
+}
+
+
+void send_client_markets(int client_number,int fd){
+
+
+
+
 
 }

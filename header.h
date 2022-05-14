@@ -17,6 +17,8 @@
 #include <sys/fcntl.h>
 #include <pthread.h>
 
+#include <math.h>
+
 //TUDO RELATIVO AO SERVER
 void init(int porto_bolsa, int porto_config, char* config_file);
 void handle_client(int fd);
@@ -29,13 +31,16 @@ int add_user(char* args,struct sockaddr addr);
 int delete_user(char* args,struct sockaddr addr);
 int list(struct sockaddr addr);
 int refresh(char* args,struct sockaddr addr);
-void wait_clients();
+void* wait_clients();
 void sigint_client();
 
 //User
 int client_login(int fd);
+void send_client_markets(int client_number, int fd);
 int buy(char* args, int fd);
 int sell(char* args, int fd);
+void subscribe(char* args, int fd);
+void wallet(int fd);
 
 //Bolsa
 void* ManageBolsa();
@@ -47,28 +52,36 @@ void* ManageBolsa();
 #define NUMBER_MARKETS 2
 #define NUMBER_STOCKS_PER_MARKET 3
 #define MAX_SIMULTANEOUS_USERS 5
+#define MAX_STRING_SIZES 50
+
+#define MULTICAST_MARKET1 "239.0.0.1"
+#define MULTICAST_MARKET2 "239.0.0.2"
 
 int fd_bolsa,fd_config;
+int fd_multicast_markets[NUMBER_MARKETS];
 struct sockaddr_in addr_bolsa;
 struct sockaddr_in addr_config;
+struct sockaddr_in addr_multicast_markets[NUMBER_MARKETS];
 
 pid_t childs_pids[10];
 pid_t admin_pid;
 
-typedef struct{
-    char username[31];
-    char password[31];
-    float balance;
-}user;
-
 
 typedef struct{
-    char name[31];
+    char name[MAX_STRING_SIZES];
     float value;
+    int num_stocks;
 }stock;
 
 typedef struct{
-    char name[31];
+    char username[MAX_STRING_SIZES];
+    char password[MAX_STRING_SIZES];
+    float balance;
+    stock user_stocks[NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET];
+}user;
+
+typedef struct{
+    char name[MAX_STRING_SIZES];
     stock stock_list[NUMBER_STOCKS_PER_MARKET];
 
 }market;
@@ -83,7 +96,7 @@ typedef struct{
     int number_users;
     user users_list[MAX_CLIENTS];
 
-    //fazer um semáforo só para o acesso aos markets???
+    //markets
     pthread_mutex_t market_access;
     market market_list[NUMBER_MARKETS];
 

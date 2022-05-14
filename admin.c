@@ -107,7 +107,7 @@ int add_user(char* args, struct sockaddr addr){
     socklen_t slen = sizeof(addr);
 
     char *tok,username[31],password[31];
-    int balance;
+    //int balance;
     //TODO ACABAR
 
 

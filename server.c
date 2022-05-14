@@ -10,16 +10,25 @@ int main(int argc, char** argv){
         exit(1);
     }
 
+    //TODO CTRL+C
+
+
+    pthread_t wait_clients_thread;
+    pthread_create(&wait_clients_thread,NULL,wait_clients,NULL);
+    pthread_detach(wait_clients_thread); //TIRAR!!!!
+
+    /*
     pid_t wait_clients_pid; //TROCAR PARA UMA THREAD?????
     if( (wait_clients_pid = fork()) == 0){
         wait_clients();
         exit(0);
     }
+    */
 
     //Thread que dá manage aos valores da bolsa
     pthread_t thread_bolsa;
     pthread_create(&thread_bolsa,NULL,ManageBolsa,NULL);
-    pthread_detach(thread_bolsa);
+    pthread_detach(thread_bolsa); // sim ou não??? mais vale no ctrl+C esperar pela thread
 
     fd_set read_set;
     FD_ZERO(&read_set);
@@ -41,7 +50,7 @@ int main(int argc, char** argv){
                 rt_status = handle_admin();
 
                 if(rt_status == 10){
-                    kill(wait_clients_pid,SIGINT);
+                    //kill(wait_clients_pid,SIGINT); TODO MANDAR SINAL PARA AS THREADS ACABAREM!!!   
                     break;
                 }
 
@@ -62,6 +71,9 @@ int main(int argc, char** argv){
     //cleanup();
     close(fd_bolsa);
     close(fd_config);
+    
+    for(int i = 0; i< NUMBER_MARKETS; i++)
+        close(fd_multicast_markets[i]);
 
     pthread_mutexattr_destroy(&SMV->attr_mutex);
     pthread_mutex_destroy(&SMV->shm_rdwr);
@@ -79,14 +91,12 @@ void* ManageBolsa(){
     //TODO
     //Criar grupos multicast
     //Gerar valores aleatórios para as ações
-    float new_value;
+    int sent_value,addrlen = sizeof(addr_multicast_markets[0]),refresh;
+    char buffer[BUFSIZ];
+    
 
     while(1){
         
-        //REFRESH TIME
-        pthread_mutex_lock(&SMV->shm_rdwr);
-        sleep(SMV->refresh_time);
-        pthread_mutex_unlock(&SMV->shm_rdwr);
 
         //GERAR NOVOS VALORES PARA AS BOLSAS
         pthread_mutex_lock(&SMV->market_access);
@@ -95,23 +105,51 @@ void* ManageBolsa(){
 
             for(int k = 0; k < NUMBER_STOCKS_PER_MARKET; k++){
 
+                //PRICE
                 if(SMV->market_list[i].stock_list[k].value == 0.01)
                     SMV->market_list[i].stock_list[k].value += 0.01;
 
-                else{
+                else if( rand()%2 == 0)
+                    SMV->market_list[i].stock_list[k].value += 0.01;
+                
+                else
+                    SMV->market_list[i].stock_list[k].value -= 0.01;
 
-                    SMV->market_list[i].stock_list[k].value += pow(-1,rand()%2)*0.01;
 
-                }
+                //STOCK NUMBER
+                if(SMV->market_list[i].stock_list[k].num_stocks == 10)
+                    SMV->market_list[i].stock_list[k].num_stocks += 10;
 
+                else if (SMV->market_list[i].stock_list[k].num_stocks == 100)
+                    SMV->market_list[i].stock_list[k].num_stocks -= 10;
+
+                else if( rand()%2 == 0)
+                    SMV->market_list[i].stock_list[k].num_stocks += 10;
+                
+                else
+                    SMV->market_list[i].stock_list[k].num_stocks -= 10;
+
+
+                //CAST NEW VALUES FOR USERS IN MULTICAST GROUP
+                memset(buffer,0,BUFSIZ);
+                snprintf(buffer,BUFSIZ,"--- MARKET: %s | STOCK: %s | PRICE: %f | STOCKS AVAILABLE: %d ---\n",SMV->market_list[i].name,SMV->market_list[i].stock_list[k].name,SMV->market_list[i].stock_list[k].value,SMV->market_list[i].stock_list[k].num_stocks);
+                printf("%s",buffer); //debug
+
+                sent_value = sendto(fd_multicast_markets[i], buffer, BUFSIZ, 0, (struct sockaddr *) &addr_multicast_markets[i], addrlen);
+
+                if(sent_value < 0)
+                    perror("SERVER ERROR, SENDTO");
+                
             }
-
-            //CAST NEW VALUES FOR USERS IN MULTICAST GROUP
-            
         }
-
-
         pthread_mutex_unlock(&SMV->market_access);
+
+        //REFRESH TIME
+        pthread_mutex_lock(&SMV->shm_rdwr);
+        refresh = SMV->refresh_time;
+        pthread_mutex_unlock(&SMV->shm_rdwr);
+
+        sleep(refresh);
 
     }
 
@@ -134,6 +172,7 @@ void cleanup(){
     shmctl(shmid, IPC_RMID, NULL);
 
 }
+
 void init(int porto_bolsa, int porto_config, char* cfg){
 
     //Open Config File
@@ -197,6 +236,10 @@ void init(int porto_bolsa, int porto_config, char* cfg){
 
         fscanf(initFile,"%30[^;];%30[^;];%f\n",&SMV->users_list[i].username[0],&SMV->users_list[i].password[0],&SMV->users_list[i].balance);
 
+        for(int j = 0;j< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;j++)
+            memset(&SMV->users_list[i].user_stocks[j].name,0,MAX_STRING_SIZES);
+
+        //TODO METER OS USERS NOS GRUPOS MULTICAST
     }
 
 
@@ -205,15 +248,21 @@ void init(int porto_bolsa, int porto_config, char* cfg){
         memset(SMV->users_list[i].username,0,31);
         memset(SMV->users_list[i].password,0,31);
         SMV->users_list[i].balance = 0;
+
+        for(int j = 0;j< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;j++)
+            memset(&SMV->users_list[i].user_stocks[j].name,0,MAX_STRING_SIZES);
+
     }
 
 
     //Read Markets/Stocks
     for(int i = 0;i< NUMBER_STOCKS_PER_MARKET;i++){
         fscanf(initFile,"%30[^;];%30[^;];%f\n",&SMV->market_list[0].name[0],&SMV->market_list[0].stock_list[i].name[0],&SMV->market_list[0].stock_list[i].value);
+        SMV->market_list[0].stock_list[i].num_stocks = 50;
     }
     for(int i = 0;i<NUMBER_STOCKS_PER_MARKET;i++){
         fscanf(initFile,"%30[^;];%30[^;];%f\n",&SMV->market_list[1].name[0],&SMV->market_list[1].stock_list[i].name[0],&SMV->market_list[1].stock_list[i].value);
+        SMV->market_list[0].stock_list[i].num_stocks = 50;
     }
 
     //DEBUG
@@ -240,6 +289,16 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     addr_config.sin_addr.s_addr = htonl(INADDR_ANY);
     addr_config.sin_port = htons(porto_config);
 
+    bzero((void *) &addr_multicast_markets[0], sizeof(addr_multicast_markets[0]) );
+    addr_multicast_markets[0].sin_family = AF_INET;
+    addr_multicast_markets[0].sin_addr.s_addr = inet_addr(MULTICAST_MARKET1);
+    addr_multicast_markets[0].sin_port = htons(porto_bolsa);
+
+    bzero((void *) &addr_multicast_markets[1], sizeof(addr_multicast_markets[1]) );
+    addr_multicast_markets[1].sin_family = AF_INET;
+    addr_multicast_markets[1].sin_addr.s_addr = inet_addr(MULTICAST_MARKET2);
+    addr_multicast_markets[1].sin_port = htons(porto_bolsa);
+
 
     // char ipStr[INET_ADDRSTRLEN];
     // inet_ntop(AF_INET,&addr_bolsa,&ipStr[0],INET_ADDRSTRLEN);
@@ -251,16 +310,37 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     //Socket Bolsa
     if ( (fd_bolsa = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	  erro("na funcao socket bolsa");
+
     if ( bind(fd_bolsa,(struct sockaddr*)&addr_bolsa,sizeof(addr_bolsa)) < 0)
 	  erro("na funcao bind bolsa");
+
     if( listen(fd_bolsa, 2) < 0)
 	  erro("na funcao listen bolsa");
+
+    //Multicast Market1
+    int multicastTTL = 255;\
+
+    fd_multicast_markets[0] = socket(AF_INET, SOCK_DGRAM, 0);
+    
+    if (setsockopt(fd_multicast_markets[0], IPPROTO_IP, IP_MULTICAST_TTL, (void *) &multicastTTL, sizeof(multicastTTL)) < 0){ 
+        perror("socket opt"); 
+        exit(1);
+    }
+
+    //Multicast Market2
+    fd_multicast_markets[1] = socket(AF_INET, SOCK_DGRAM, 0);
+    if (setsockopt(fd_multicast_markets[1], IPPROTO_IP, IP_MULTICAST_TTL, (void *) &multicastTTL, sizeof(multicastTTL)) < 0){ 
+        perror("socket opt"); 
+        exit(1);
+    }
+
 
     //Socket Config
     if ( (fd_config = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
 	  erro("na funcao socket config");
     if ( bind(fd_config,(struct sockaddr*)&addr_config,sizeof(addr_config)) < 0)
 	  erro("na funcao bind config");
+
 }
 
 void erro(char *s) {
