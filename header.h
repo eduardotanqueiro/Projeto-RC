@@ -39,7 +39,7 @@ int client_login(int fd);
 void send_client_markets(int client_number, int fd);
 int buy(char* args, int client_number, int fd);
 int sell(char* args, int client_number, int fd);
-void subscribe(char* args, int fd);
+void subscribe(char* args, int client_number, int fd);
 void wallet(int client_number, int fd);
 
 //Bolsa
@@ -78,6 +78,7 @@ typedef struct{
     char password[MAX_STRING_SIZES];
     float balance;
     stock user_stocks[NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET];
+    short available_markets[NUMBER_MARKETS];
 }user;
 
 typedef struct{
@@ -91,7 +92,7 @@ typedef struct{
     //TODO ACABAR A SHARED MEMORY
     pthread_mutex_t shm_rdwr;
     pthread_mutexattr_t attr_mutex;
-    // sem_t *shm_rdwr;
+
     int refresh_time;
     int number_users;
     user users_list[MAX_CLIENTS];

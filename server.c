@@ -239,7 +239,9 @@ void init(int porto_bolsa, int porto_config, char* cfg){
         for(int j = 0;j< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;j++)
             memset(&SMV->users_list[i].user_stocks[j].name,0,MAX_STRING_SIZES);
 
-        //TODO METER OS USERS NOS GRUPOS MULTICAST
+        //TODO METER OS USERS NOS GRUPOS MULTICAST (SECALHAR NÃO, SÓ METE QUANDO O USER PEDE)
+        for(int j = 0;j< NUMBER_MARKETS;j++)
+            SMV->users_list[i].available_markets[j] = 1;
     }
 
 

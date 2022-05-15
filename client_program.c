@@ -45,10 +45,9 @@ int main(int argc, char* argv){
         //cleanup
     }
 
-    //TODO Receive Markets Info
+    //Receive Markets Info
     int number_markets = ReceiveMarketsInfo();
     
-
     //thread for receiving UDP Multicast Updates
     // pthread_t updates_handler;
     // pthread_create(&updates_handler,NULL,HandleStocksUpdates,0);
@@ -107,6 +106,14 @@ int ReceiveMarketsInfo(){
         buffer[nread] = '\0';
 
         strcpy(available_markets[i],buffer);
+        printf("--- MARKET: %s ---\n",buffer);
+
+        //print stocks info
+        for(int k = 0;k<NUMBER_STOCKS_PER_MARKET;k++){
+            memset(buffer,0,BUFSIZ);
+            nread = read(fd_server,buffer,BUFSIZ);
+            printf("%s\n",buffer);
+        }
 
     }
 
@@ -237,12 +244,23 @@ void TrySubscribeMarket(){
         printf("--- INTRODUZA O COMANDO NO FORMATO: MARKET_NAME ---\n");
         scanf("%s",aux);
 
-        if( check_regex(aux,"[a-zA-Z0-9_-]+") == 0)
+        if( check_regex(aux,"[a-zA-Z0-9_-]+") == 0){
             
-            //TODO checkar se o market introduzido está na lista de markets 
+            //checkar se o market introduzido está na lista de markets 
             //permitidos ao user (available_markets)
-            check_string = 1;
+            for(int i = 0;i<NUMBER_MARKETS;i++){
+                if( !strcmp(aux,available_markets[i])){
+                    check_string = 1;
+                    break;
+                }
 
+                if(i == NUMBER_MARKETS-1){
+                    printf("--- MERCADO INVÁLIDO OU NÃO ACESSÍVEL ---\n");
+                }
+
+            }
+        
+        }
     }
 
     strcat(buffer,aux);

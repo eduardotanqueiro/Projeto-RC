@@ -125,7 +125,7 @@ void handle_client(int fd){
 
     if ( client_number != -1){
 
-        //TODO send client available markets and respective multicast groups ips
+        //send client available markets
         send_client_markets(client_number,fd);
 
         char comando[50];
@@ -135,10 +135,12 @@ void handle_client(int fd){
         while( strcmp(comando,"SAIR") != 0){
 
             //receive messagem from user console
-            printf("\n[USER] Waiting for user command\n");
+            printf("\n[SERVER-USER] Waiting for user command\n");
             memset(buffer,0,BUFSIZ);
 
             read(fd,buffer,BUFSIZ);
+
+            printf("[DEBUG][SERVER-USER] Received command %s\n",buffer);
 
             //Get Command
 
@@ -157,7 +159,7 @@ void handle_client(int fd){
                 sell(resto, client_number, fd);
 
             else if(!strcmp(comando,"SUBSCREVER"))
-                subscribe(resto,fd);
+                subscribe(resto,client_number,fd);
 
             else if(!strcmp(comando,"CARTEIRA"))
                 wallet(client_number,fd);
@@ -175,9 +177,38 @@ void handle_client(int fd){
 
 void send_client_markets(int client_number,int fd){
 
+    int nr_markets = 0;
+    char buffer[BUFSIZ];
 
+    pthread_mutex_lock(&SMV->shm_rdwr);
+    for(int i = 0; i<NUMBER_MARKETS;i++)
+        if(SMV->users_list[client_number].available_markets[i] == 1)
+            nr_markets++;
 
+    snprintf(buffer,BUFSIZ,"%d",nr_markets);
+    write(fd,buffer,BUFSIZ);
 
+    pthread_mutex_lock(&SMV->market_access);
+    for(int i = 0; i<NUMBER_MARKETS;i++){
+
+        if(SMV->users_list[client_number].available_markets[i] == 1){ //if user has access to this market
+            //send market name
+            memset(buffer,0,BUFSIZ);
+            snprintf(buffer,BUFSIZ,"%s",SMV->market_list[i].name);
+            write(fd,buffer,BUFSIZ);
+
+            //send markets' stock info
+            for(int j = 0;j<NUMBER_STOCKS_PER_MARKET;j++){
+                memset(buffer,0,BUFSIZ);
+                snprintf(buffer,BUFSIZ,"-- STOCK: %s | PRICE: %f ---",SMV->market_list[i].stock_list[j].name,SMV->market_list[i].stock_list[j].value);
+                write(fd,buffer,BUFSIZ);  
+            }
+
+        }
+    }
+    pthread_mutex_unlock(&SMV->market_access);
+
+    pthread_mutex_unlock(&SMV->shm_rdwr);
 
 }
 
@@ -189,6 +220,49 @@ int buy(char* args,int client_number, int fd){
 int sell(char* args,int client_number, int fd){
     printf("Sold!\n");
     return 0;
+}
+
+void subscribe(char* args,int client_number, int fd){
+
+    char buffer[BUFSIZ];
+    int market_nr;
+
+    pthread_mutex_lock(&SMV->shm_rdwr);
+    pthread_mutex_lock(&SMV->market_access);
+    if( check_regex(args,"[a-zA-Z0-9_-]+") == 0){
+            
+        //checkar se o market introduzido está na lista de markets 
+        //permitidos ao user
+        for(int i = 0;i<NUMBER_MARKETS;i++){
+
+            if( !strcmp(args, SMV->market_list[i].name) && (SMV->users_list[client_number].available_markets[i] == 1)){
+                market_nr = i;
+                break;
+            }
+
+            if(i == NUMBER_MARKETS-1){
+                write(fd,"--- MERCADO INVÁLIDO OU NÃO ACESSÍVEL ---",45);
+                pthread_mutex_unlock(&SMV->market_access);
+                pthread_mutex_unlock(&SMV->shm_rdwr);
+                return;
+            }
+
+        }
+    
+    }
+
+    pthread_mutex_unlock(&SMV->market_access);
+    pthread_mutex_unlock(&SMV->shm_rdwr);
+
+
+    //send multicast group ip to the user
+    if(market_nr == 0)
+        write(fd,MULTICAST_MARKET1,sizeof(MULTICAST_MARKET1));
+    else if(market_nr == 1)
+        write(fd,MULTICAST_MARKET2,sizeof(MULTICAST_MARKET2));
+
+    
+
 }
 
 void wallet(int client_number, int fd){
