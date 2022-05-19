@@ -17,14 +17,6 @@ int main(int argc, char** argv){
     pthread_create(&wait_clients_thread,NULL,wait_clients,NULL);
     pthread_detach(wait_clients_thread); //TIRAR!!!!
 
-    /*
-    pid_t wait_clients_pid; //TROCAR PARA UMA THREAD?????
-    if( (wait_clients_pid = fork()) == 0){
-        wait_clients();
-        exit(0);
-    }
-    */
-
     //Thread que dá manage aos valores da bolsa
     pthread_t thread_bolsa;
     pthread_create(&thread_bolsa,NULL,ManageBolsa,NULL);
@@ -88,13 +80,12 @@ int main(int argc, char** argv){
 
 void* ManageBolsa(){
 
-    //TODO
-    //Criar grupos multicast
+
     //Gerar valores aleatórios para as ações
     int sent_value,addrlen = sizeof(addr_multicast_markets[0]),refresh;
     char buffer[BUFSIZ];
     
-
+    
     while(1){
         
 
@@ -106,6 +97,7 @@ void* ManageBolsa(){
             for(int k = 0; k < NUMBER_STOCKS_PER_MARKET; k++){
 
                 //PRICE
+                //TODO CRIAR TREND COM BASE NUM VALOR ALEATÓRIO
                 if(SMV->market_list[i].stock_list[k].value == 0.01)
                     SMV->market_list[i].stock_list[k].value += 0.01;
 
@@ -132,8 +124,8 @@ void* ManageBolsa(){
 
                 //CAST NEW VALUES FOR USERS IN MULTICAST GROUP
                 memset(buffer,0,BUFSIZ);
-                snprintf(buffer,BUFSIZ,"--- MARKET: %s | STOCK: %s | PRICE: %f | STOCKS AVAILABLE: %d ---\n",SMV->market_list[i].name,SMV->market_list[i].stock_list[k].name,SMV->market_list[i].stock_list[k].value,SMV->market_list[i].stock_list[k].num_stocks);
-                printf("%s",buffer); //debug
+                snprintf(buffer,BUFSIZ,"--- MARKET: %s | STOCK: %s | PRICE: %f | STOCKS AVAILABLE: %d ---",SMV->market_list[i].name,SMV->market_list[i].stock_list[k].name,SMV->market_list[i].stock_list[k].value,SMV->market_list[i].stock_list[k].num_stocks);
+                printf("%s\n",buffer); //debug
 
                 sent_value = sendto(fd_multicast_markets[i], buffer, BUFSIZ, 0, (struct sockaddr *) &addr_multicast_markets[i], addrlen);
 
@@ -264,7 +256,7 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     }
     for(int i = 0;i<NUMBER_STOCKS_PER_MARKET;i++){
         fscanf(initFile,"%30[^;];%30[^;];%f\n",&SMV->market_list[1].name[0],&SMV->market_list[1].stock_list[i].name[0],&SMV->market_list[1].stock_list[i].value);
-        SMV->market_list[0].stock_list[i].num_stocks = 50;
+        SMV->market_list[1].stock_list[i].num_stocks = 50;
     }
 
     //DEBUG
