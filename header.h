@@ -19,6 +19,10 @@
 
 #include <math.h>
 
+#include <regex.h>
+
+#include <netdb.h>
+
 //TUDO RELATIVO AO SERVER
 void init(int porto_bolsa, int porto_config, char* config_file);
 void handle_client(int fd);
@@ -46,6 +50,8 @@ void wallet(int client_number, int fd);
 void* ManageBolsa();
 
 // 
+int check_regex(char *text, char *regex);
+
 
 #define INITIAL_REFRESH_TIME 2
 #define MAX_CLIENTS 10
@@ -56,6 +62,7 @@ void* ManageBolsa();
 
 #define MULTICAST_MARKET1 "239.0.0.1"
 #define MULTICAST_MARKET2 "239.0.0.2"
+
 
 int fd_bolsa,fd_config;
 int fd_multicast_markets[NUMBER_MARKETS];

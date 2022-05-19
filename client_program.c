@@ -1,7 +1,7 @@
 #include "header.h" // TODO fazer header files separados e 1 comum só com estruturas e imports
 #include "client_program.h"
 
-int main(int argc, char* argv){
+int main(int argc, char** argv){
 
     char endServer[100];
     struct hostent *hostPtr;
@@ -14,7 +14,8 @@ int main(int argc, char* argv){
 
     porto = atoi(argv[2]);
     feed_on = 1;
-    pthread_mutex_init(&check_feed,PTHREAD_MUTEX_INITIALIZER);
+
+    //check_feed = PTHREAD_MUTEX_INITIALIZER;
 
 
     strcpy(endServer, argv[1]);
@@ -67,10 +68,10 @@ int login(){
     char buffer[BUFSIZ] = "\0";
     int nread;
 
-    while( strcmp(buffer,"Login Bem Sucedido\n") != 0){
+    read(fd_server,buffer,BUFSIZ);
+    printf("--- %s ---\n",buffer);
 
-        read(fd_server,buffer,BUFSIZ);
-        printf("--- %s ---",buffer);
+    while( strcmp(buffer,"Login Bem Sucedido") != 0){
 
         memset(buffer,0,BUFSIZ);
         scanf("%s",buffer);
@@ -80,9 +81,9 @@ int login(){
         if(!strcmp(buffer,"QUIT\n")) //sair sem login
             return 1;
 
-        memset(buffer,0,BUFSIZ);
         read(fd_server,buffer,BUFSIZ);
-        printf("%s",buffer);
+        printf("--- %s ---\n",buffer);
+
 
     }
 
@@ -91,13 +92,20 @@ int login(){
 
 int ReceiveMarketsInfo(){
 
+    // printf("debug wait receiving markets from server\n");
+
+
     int num_markets_access, nread;
     char buffer[BUFSIZ];
 
     //number of markets user has access
-    read(fd_server,buffer,BUFSIZ);
+    nread = read(fd_server,buffer,BUFSIZ);
+
+    printf("DEBUG BUFFER %d RECEBIDO MARKETS %s\n",nread,buffer);
+
     num_markets_access = atoi(buffer);
 
+    printf("debug num markets %d\n",num_markets_access);
 
     for(int i = 0;i<num_markets_access;i++){
         //receive market name
@@ -131,7 +139,7 @@ void TalkWithServer(){
     char buffer[BUFSIZ];
     int nread,check_input,number_instruction;
 
-    printf("--- MENU ---\n");
+    printf("\n--- MENU ---\n");
     printf("--- 1: SUBSCREVER COTAÇÕES DE MERCADOS ---\n");
     printf("--- 2: COMPRAR AÇÕES ---\n");
     printf("--- 3: VENDER AÇÕES ---\n");
@@ -211,10 +219,10 @@ void BuyOrSellStock(int mode){
 
     while( check_input == 0){
 
-        printf("--- INTRODUZA O COMANDO NO FORMATO: NOME_DO_STOCK NUMERO_ACOES PRECO ---\n");
+        printf("--- INTRODUZA O COMANDO NO FORMATO: NOME_DO_STOCK/NUMERO_ACOES/PRECO ---\n");
         scanf("%s",aux);
 
-        if( check_regex(aux,"([a-zA-Z0-9]+) ([0-9]+) ([0-9]+(\r\n|\r|\n)?)") == 0)
+        if( check_regex(aux,"([a-zA-Z0-9]+)/([0-9]+)/([0-9]+)(.([0-9]+)((\r\n|\r|\n))?)?") == 0)
             check_input = 1;
 
     }
@@ -272,6 +280,8 @@ void TrySubscribeMarket(){
     memset(buffer,0,BUFSIZ);
     read(fd_server,buffer,BUFSIZ);
 
+    printf("ip multicast %s\n",buffer);
+
     //Create thread that receives updates from ip received in buffer
     pthread_t market;
     pthread_create(&market,NULL,HandleStocksUpdates,(void*)buffer);
@@ -305,10 +315,14 @@ void ChangeStateFeed(){
 
     pthread_mutex_lock(&check_feed);
 
-    if(feed_on)
+    if(feed_on){
         feed_on = 0;
-    else
+        printf("--- FEED DE ATUALIZAÇÔES DESATIVADO ---\n");
+    }
+    else{
         feed_on = 1;
+        printf("--- FEED DE ATUALIZAÇÔES ATIVADO ---\n");
+    }
 
     pthread_mutex_unlock(&check_feed);
 
@@ -337,7 +351,7 @@ void* HandleStocksUpdates(void* ip_multicast){
 
     bzero((char *)&addr_multicast, sizeof(addr_multicast)); 
     addr_multicast.sin_family = AF_INET; 
-    addr_multicast.sin_addr.s_addr = htonl(INADDR_ANY); 
+    addr_multicast.sin_addr.s_addr = inet_addr(ip_str);//htonl(INADDR_ANY); 
     addr_multicast.sin_port = htons(porto); 
     addrlen = sizeof(addr_multicast);
 
@@ -369,7 +383,7 @@ void* HandleStocksUpdates(void* ip_multicast){
         pthread_mutex_lock(&check_feed);
         if(feed_on)
             printf("%s\n",buffer);
-        pthread_mutex_lock(&check_feed);
+        pthread_mutex_unlock(&check_feed);
 
     }
 
@@ -391,4 +405,9 @@ int check_regex(char *text, char *regex){
     regfree(&reg);
 
     return rt;
+}
+
+void erro(char *s) {
+	perror(s);
+	exit(1);
 }

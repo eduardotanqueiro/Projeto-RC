@@ -77,7 +77,7 @@ int client_login(int fd){
         memset(buffer,0,BUFSIZ);
         write(fd,"Introduza as credenciais no formato Username/Password: ",56);
         read(fd,buffer,BUFSIZ);
-        buffer[strlen(buffer) - 1] = 0;
+        buffer[strlen(buffer)] = 0;
 
         token = strtok(buffer,"/");
         strcpy(username,token);
@@ -105,12 +105,12 @@ int client_login(int fd){
             break;
 
         else
-            write(fd,"Username ou password errado(s)!\n",33);
+            write(fd,"Username ou password errado(s)!",33);
 
     }while(1);
 
     printf("[USER] Login Bem Sucedido\n");
-    write(fd,"Login Bem Sucedido\n",20);
+    write(fd,"Login Bem Sucedido",20);
 
     return number_client;
 
@@ -121,10 +121,13 @@ int client_login(int fd){
 void handle_client(int fd){
 
     char buffer[BUFSIZ];
-    int client_number = client_login(fd);
+    int client_number = client_login(fd); //LOGIN CLIENT
+
+    printf("DEBUG SERVER CLIENT NUMBER/FD %d/%d\n",client_number,fd);
 
     if ( client_number != -1){
 
+        usleep(1000);
         //send client available markets
         send_client_markets(client_number,fd);
 
@@ -132,6 +135,8 @@ void handle_client(int fd){
         char* token;
 
         //MENU
+        printf("DEBUG MENU CLIENT\n");
+
         while( strcmp(comando,"SAIR") != 0){
 
             //receive messagem from user console
@@ -185,8 +190,14 @@ void send_client_markets(int client_number,int fd){
         if(SMV->users_list[client_number].available_markets[i] == 1)
             nr_markets++;
 
+    printf("SENDING NUMBER MARKETS FOR CLIENT %d\n",nr_markets);
+
+    memset(buffer,0,BUFSIZ);
     snprintf(buffer,BUFSIZ,"%d",nr_markets);
+    printf("BEFORE SENDING NUM MARKETS %s\n",buffer);
     write(fd,buffer,BUFSIZ);
+
+    printf("SENDING MARKETS FOR CLIENTS\n");
 
     pthread_mutex_lock(&SMV->market_access);
     for(int i = 0; i<NUMBER_MARKETS;i++){
@@ -195,6 +206,9 @@ void send_client_markets(int client_number,int fd){
             //send market name
             memset(buffer,0,BUFSIZ);
             snprintf(buffer,BUFSIZ,"%s",SMV->market_list[i].name);
+
+            printf("%s\n",buffer); //DEBUG
+
             write(fd,buffer,BUFSIZ);
 
             //send markets' stock info
@@ -213,18 +227,28 @@ void send_client_markets(int client_number,int fd){
 }
 
 int buy(char* args,int client_number, int fd){
+    char buffer[BUFSIZ];
+
+    snprintf(buffer,BUFSIZ,"COMPRADO!!!");
+    write(fd,buffer,BUFSIZ);
+
     printf("Bought!\n");
     return 0;
 }
 
 int sell(char* args,int client_number, int fd){
+    char buffer[BUFSIZ];
+
+    snprintf(buffer,BUFSIZ,"VENDIDO!!!");
+    write(fd,buffer,BUFSIZ);
+
     printf("Sold!\n");
     return 0;
 }
 
 void subscribe(char* args,int client_number, int fd){
 
-    char buffer[BUFSIZ];
+    // char buffer[BUFSIZ];
     int market_nr;
 
     pthread_mutex_lock(&SMV->shm_rdwr);
@@ -270,19 +294,34 @@ void wallet(int client_number, int fd){
     char buffer[BUFSIZ];
 
     pthread_mutex_lock(&SMV->shm_rdwr);
-    snprintf(buffer,BUFSIZ,"--- SALDO: %d ---",SMV->users_list[client_number].balance);
+    snprintf(buffer,BUFSIZ,"--- SALDO: %f ---",SMV->users_list[client_number].balance);
     write(fd,buffer,BUFSIZ);
 
     for(int i = 0;i< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;i++){
 
         if( strcmp(SMV->users_list[client_number].user_stocks[i].name,"\0") != 0){
-            snprintf(buffer,BUFSIZ,"--- STOCK: %d | NUMERO STOCKS: %d ---",SMV->users_list[client_number].user_stocks[i].name,SMV->users_list[client_number].user_stocks[i].num_stocks);
+            snprintf(buffer,BUFSIZ,"--- STOCK: %s | NUMERO STOCKS: %d ---",SMV->users_list[client_number].user_stocks[i].name,SMV->users_list[client_number].user_stocks[i].num_stocks);
             write(fd,buffer,BUFSIZ);
         }
 
     }
-    pthread_mutex_lock(&SMV->shm_rdwr);
+    pthread_mutex_unlock(&SMV->shm_rdwr);
 
-    write(fd,"FIM",BUFSIZ);
+    snprintf(buffer,BUFSIZ,"FIM");
+    write(fd,buffer,BUFSIZ);
 
+}
+
+// TODO meter num ficheiro proos 2
+int check_regex(char *text, char *regex){
+
+    regex_t reg;
+
+    regcomp(&reg,regex,REG_EXTENDED);
+
+    int rt = regexec(&reg,text,0,NULL,0);
+
+    regfree(&reg);
+
+    return rt;
 }
