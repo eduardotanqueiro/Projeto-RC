@@ -121,9 +121,9 @@ int client_login(int fd){
 void handle_client(int fd){
 
     char buffer[BUFSIZ];
+    int nread;
     int client_number = client_login(fd); //LOGIN CLIENT
 
-    printf("DEBUG SERVER CLIENT NUMBER/FD %d/%d\n",client_number,fd);
 
     if ( client_number != -1){
 
@@ -135,7 +135,6 @@ void handle_client(int fd){
         char* token;
 
         //MENU
-        printf("DEBUG MENU CLIENT\n");
 
         while( strcmp(comando,"SAIR") != 0){
 
@@ -143,7 +142,10 @@ void handle_client(int fd){
             printf("\n[SERVER-USER] Waiting for user command\n");
             memset(buffer,0,BUFSIZ);
 
-            read(fd,buffer,BUFSIZ);
+            nread = read(fd,buffer,BUFSIZ);
+
+            if(nread == 0)
+                break;
 
             printf("[DEBUG][SERVER-USER] Received command %s\n",buffer);
 
@@ -174,7 +176,9 @@ void handle_client(int fd){
 
         }
 
+        //TODO remover dos grupos multicast
         printf("[USER] User left\n");
+
     }
 
 }
@@ -190,14 +194,14 @@ void send_client_markets(int client_number,int fd){
         if(SMV->users_list[client_number].available_markets[i] == 1)
             nr_markets++;
 
-    printf("SENDING NUMBER MARKETS FOR CLIENT %d\n",nr_markets);
+    // printf("SENDING NUMBER MARKETS FOR CLIENT %d\n",nr_markets);
 
     memset(buffer,0,BUFSIZ);
     snprintf(buffer,BUFSIZ,"%d",nr_markets);
-    printf("BEFORE SENDING NUM MARKETS %s\n",buffer);
+    // printf("BEFORE SENDING NUM MARKETS %s\n",buffer);
     write(fd,buffer,BUFSIZ);
 
-    printf("SENDING MARKETS FOR CLIENTS\n");
+    // printf("SENDING MARKETS FOR CLIENTS\n");
 
     pthread_mutex_lock(&SMV->market_access);
     for(int i = 0; i<NUMBER_MARKETS;i++){
@@ -207,7 +211,7 @@ void send_client_markets(int client_number,int fd){
             memset(buffer,0,BUFSIZ);
             snprintf(buffer,BUFSIZ,"%s",SMV->market_list[i].name);
 
-            printf("%s\n",buffer); //DEBUG
+            // printf("%s\n",buffer); //DEBUG
 
             write(fd,buffer,BUFSIZ);
 
@@ -228,9 +232,91 @@ void send_client_markets(int client_number,int fd){
 
 int buy(char* args,int client_number, int fd){
     char buffer[BUFSIZ];
+    int break_flag = 0;
+    
+    char *tok, *resto, nome_stock[MAX_STRING_SIZES];
+    int num_acoes;
+    float preco;
 
-    snprintf(buffer,BUFSIZ,"COMPRADO!!!");
-    write(fd,buffer,BUFSIZ);
+    //Get arguments
+    tok = strtok_r(args,"/",&resto);
+    strcpy(nome_stock,tok);
+
+    tok = strtok_r(NULL,"/",&resto);
+    num_acoes = atoi(tok);
+
+    tok = strtok_r(NULL,"/",&resto);
+    preco = atof(tok);
+
+    //check saldo
+    pthread_mutex_lock(&SMV->shm_rdwr);
+
+    if( ((float)num_acoes)*preco > SMV->users_list[client_number].balance)
+        write(fd,"SALDO INSUFICIENTE PARA EFETUAR A COMPRA",41);
+
+
+    //Check stock price
+    pthread_mutex_lock(&SMV->market_access);
+
+    for(int i = 0; i < NUMBER_MARKETS; i++){
+
+        if(break_flag)
+            break;
+        
+        for(int k = 0; k < NUMBER_STOCKS_PER_MARKET; k++){
+
+            if( !strcmp(nome_stock,SMV->market_list[i].stock_list[k].name) ){
+                
+                break_flag = 1;
+
+                if( SMV->users_list[client_number].available_markets[i] == 0){
+                    //User doesnt has access to this market
+                    write(fd,"AÇÃO INVÁLIDA OU MERCADO INACESSÍVEL",40);
+                    break;
+                }
+
+                if( SMV->market_list[i].stock_list[k].value > preco){
+                    //User buy price its not enough
+                    write(fd,"ORDEM RECUSADA: O PRECO DE MERCADO É SUPERIOR",47);
+                    break;
+                }
+
+                //Do the purchase
+                if( SMV->market_list[i].stock_list[k].num_stocks < num_acoes){
+
+                    SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].num_stocks =  SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].num_stocks + SMV->market_list[i].stock_list[k].num_stocks;
+                    snprintf(buffer,BUFSIZ,"COMPRADAS %d AÇÕES",SMV->market_list[i].stock_list[k].num_stocks);
+
+                }else{
+
+                    SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].num_stocks =  SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].num_stocks + num_acoes;
+                    snprintf(buffer,BUFSIZ,"AÇÕES COMPRADAS");
+
+                }
+                write(fd,buffer,BUFSIZ);
+
+                if( SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].name[0] == 0 )
+                    strcpy(SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].name,nome_stock);
+
+                SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].value = SMV->market_list[i].stock_list[k].value;
+                SMV->users_list[client_number].balance -= SMV->market_list[i].stock_list[k].value * num_acoes;
+
+                break;
+
+            }
+
+        }
+
+    }
+
+    pthread_mutex_unlock(&SMV->market_access);
+
+    pthread_mutex_unlock(&SMV->shm_rdwr);
+
+    if(break_flag == 0){
+        //Se não encontrou o stock
+        write(fd,"AÇÃO INVÁLIDA OU MERCADO INACESSÍVEL",40);
+    }
 
     printf("Bought!\n");
     return 0;
@@ -238,9 +324,97 @@ int buy(char* args,int client_number, int fd){
 
 int sell(char* args,int client_number, int fd){
     char buffer[BUFSIZ];
+    int break_flag = 0;
+    int nr_mercado = -1;
+    int nr_stocks_no_mercado;
 
-    snprintf(buffer,BUFSIZ,"VENDIDO!!!");
-    write(fd,buffer,BUFSIZ);
+    char *tok, *resto, nome_stock[MAX_STRING_SIZES];
+    int num_acoes;
+    float preco;
+
+    //Get arguments
+    tok = strtok_r(args,"/",&resto);
+    strcpy(nome_stock,tok);
+
+    tok = strtok_r(NULL,"/",&resto);
+    num_acoes = atoi(tok);
+
+    tok = strtok_r(NULL,"/",&resto);
+    preco = atof(tok);
+
+    pthread_mutex_lock(&SMV->shm_rdwr);
+    //Check if user has given stock
+    for(int i = 0; i < NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET  ; i++){
+
+        if ( i % NUMBER_STOCKS_PER_MARKET == 0)
+            nr_mercado++;
+
+        if(break_flag)
+            break;
+
+
+        if( !strcmp(nome_stock,SMV->users_list[client_number].user_stocks[i].name) ){
+            //user has that stock
+            break_flag = 1;
+
+            //check wether user has given stock number to sell
+            if( SMV->users_list[client_number].user_stocks[i].num_stocks < num_acoes){
+                write(fd,"NÃO TENS AÇÕES SUFICIENTES PARA REALIZAR ESTA OPERAÇÃO",60);
+                break;
+            }
+
+            //check market price and number of stocks on the market
+            pthread_mutex_lock(&SMV->market_access);
+
+            nr_stocks_no_mercado = SMV->market_list[nr_mercado].stock_list[ i % NUMBER_STOCKS_PER_MARKET].num_stocks;
+            // printf("%d %d %d %d\n",nr_stocks_no_mercado, SMV->market_list[nr_mercado].stock_list[ i % NUMBER_STOCKS_PER_MARKET].num_stocks,nr_mercado,i % NUMBER_STOCKS_PER_MARKET);
+
+
+            if( preco > SMV->market_list[nr_mercado].stock_list[ i % NUMBER_STOCKS_PER_MARKET].value){
+                //
+                write(fd,"ORDEM RECUSADA: O PRECO DE COMPRA DO MERCADO É INFERIOR",57);
+                pthread_mutex_unlock(&SMV->market_access);
+                break;
+
+            }
+
+            pthread_mutex_unlock(&SMV->market_access);
+
+
+            //do the sale
+            if( nr_stocks_no_mercado < num_acoes){
+                
+                SMV->users_list[client_number].user_stocks[i].num_stocks -= nr_stocks_no_mercado;
+                snprintf(buffer,BUFSIZ,"VENDIDAS %d AÇÕES",nr_stocks_no_mercado);
+                SMV->users_list[client_number].balance += nr_stocks_no_mercado*preco;
+
+            }
+            else{
+
+                SMV->users_list[client_number].user_stocks[i].num_stocks -= num_acoes;
+                snprintf(buffer,BUFSIZ,"AÇÕES VENDIDAS");
+                SMV->users_list[client_number].balance += num_acoes*preco;
+
+            }
+
+            write(fd,buffer,BUFSIZ);
+
+            if(SMV->users_list[client_number].user_stocks[i].num_stocks == 0)
+                memset(SMV->users_list[client_number].user_stocks[i].name,0,MAX_STRING_SIZES);
+
+
+
+
+        }
+
+
+    }
+
+    pthread_mutex_unlock(&SMV->shm_rdwr);
+
+    if(break_flag == 0)
+        write(fd,"AÇÃO INVÁLIDA OU MERCADO INACESSÍVEL",41);
+
 
     printf("Sold!\n");
     return 0;

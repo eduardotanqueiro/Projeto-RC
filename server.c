@@ -198,8 +198,6 @@ void init(int porto_bolsa, int porto_config, char* cfg){
 
     pthread_mutex_init(&SMV->shm_rdwr,&SMV->attr_mutex);
     pthread_mutex_init(&SMV->market_access,&SMV->attr_mutex);
-    // sem_unlink("SHM_RDWR");
-    // SMV->shm_rdwr = sem_open("SHM_RDWR", O_CREAT | O_EXCL,0700,1);
 
     SMV->refresh_time = INITIAL_REFRESH_TIME;
 
@@ -228,8 +226,11 @@ void init(int porto_bolsa, int porto_config, char* cfg){
 
         fscanf(initFile,"%30[^;];%30[^;];%f\n",&SMV->users_list[i].username[0],&SMV->users_list[i].password[0],&SMV->users_list[i].balance);
 
-        for(int j = 0;j< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;j++)
+        for(int j = 0;j< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;j++){
             memset(&SMV->users_list[i].user_stocks[j].name,0,MAX_STRING_SIZES);
+            SMV->users_list[i].user_stocks[j].num_stocks = 0;
+            SMV->users_list[i].user_stocks[j].value = 0;
+        }
 
         //TODO METER OS USERS NOS GRUPOS MULTICAST (SECALHAR NÃO, SÓ METE QUANDO O USER PEDE)
         for(int j = 0;j< NUMBER_MARKETS;j++)
@@ -243,8 +244,11 @@ void init(int porto_bolsa, int porto_config, char* cfg){
         memset(SMV->users_list[i].password,0,31);
         SMV->users_list[i].balance = 0;
 
-        for(int j = 0;j< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;j++)
+        for(int j = 0;j< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;j++){
             memset(&SMV->users_list[i].user_stocks[j].name,0,MAX_STRING_SIZES);
+            SMV->users_list[i].user_stocks[j].num_stocks = 0;
+            SMV->users_list[i].user_stocks[j].value = 0;
+        }
 
     }
 
@@ -260,13 +264,11 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     }
 
     //DEBUG
-    for(int i = 0;i<2;i++){
-        for(int k = 0;k<3;k++){
-            printf("DEUBG %s %s %f\n",&SMV->market_list[i].name[0],&SMV->market_list[i].stock_list[k].name[0],SMV->market_list[i].stock_list[k].value);
-        }
-    }
-
-    //
+    // for(int i = 0;i<2;i++){
+    //     for(int k = 0;k<3;k++){
+    //         printf("DEUBG %s %s %f\n",&SMV->market_list[i].name[0],&SMV->market_list[i].stock_list[k].name[0],SMV->market_list[i].stock_list[k].value);
+    //     }
+    // }
 
     fclose(initFile);
 

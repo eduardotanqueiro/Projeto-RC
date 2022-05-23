@@ -48,11 +48,6 @@ int main(int argc, char** argv){
 
     //Receive Markets Info
     int number_markets = ReceiveMarketsInfo();
-    
-    //thread for receiving UDP Multicast Updates
-    // pthread_t updates_handler;
-    // pthread_create(&updates_handler,NULL,HandleStocksUpdates,0);
-    // pthread_detach(updates_handler); //??
 
     //
     TalkWithServer();
@@ -92,20 +87,17 @@ int login(){
 
 int ReceiveMarketsInfo(){
 
-    // printf("debug wait receiving markets from server\n");
-
-
     int num_markets_access, nread;
     char buffer[BUFSIZ];
 
     //number of markets user has access
     nread = read(fd_server,buffer,BUFSIZ);
 
-    printf("DEBUG BUFFER %d RECEBIDO MARKETS %s\n",nread,buffer);
+    // printf("DEBUG BUFFER %d RECEBIDO MARKETS %s\n",nread,buffer);
 
     num_markets_access = atoi(buffer);
 
-    printf("debug num markets %d\n",num_markets_access);
+    // printf("debug num markets %d\n",num_markets_access);
 
     for(int i = 0;i<num_markets_access;i++){
         //receive market name
@@ -235,7 +227,7 @@ void BuyOrSellStock(int mode){
     //Receive Response from server
     memset(buffer,0,BUFSIZ);
     read(fd_server,buffer,BUFSIZ);
-    printf("%s\n",buffer);
+    printf("--- %s ---\n",buffer);
 
 }
 
@@ -279,8 +271,6 @@ void TrySubscribeMarket(){
     //Receive response from server
     memset(buffer,0,BUFSIZ);
     read(fd_server,buffer,BUFSIZ);
-
-    printf("ip multicast %s\n",buffer);
 
     //Create thread that receives updates from ip received in buffer
     pthread_t market;
@@ -368,7 +358,7 @@ void* HandleStocksUpdates(void* ip_multicast){
         pthread_exit(NULL);
     }
 
-    while(1){
+    while(1){ //TODO end condition
         
         nread = recvfrom(socket_multicast,buffer,BUFSIZ,0,(struct sockaddr*) &addr_multicast,(socklen_t *)&addrlen);
 
