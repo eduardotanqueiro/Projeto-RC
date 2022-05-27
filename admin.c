@@ -106,20 +106,26 @@ int add_user(char* args, struct sockaddr addr){
     printf("[ADMIN] adicionar user %s\n",args);
     socklen_t slen = sizeof(addr);
 
-    char *tok,username[31],password[31];
-    //int balance;
+    char *tok,*resto,username[31],password[31];
+    int balance;
+    int markets;
     //TODO ACABAR
 
 
     if(args != NULL){
 
-        tok = strtok(args," ");
+        tok = strtok_r(args," ",&resto);
         strcpy(username,tok);
 
-        tok = strtok(NULL, " ");
+        tok = strtok_r(NULL, " ", &resto);
         strcpy(password,tok);
 
-        //TODO split das bolsas e do balance do user
+        tok = strtok_r(NULL," ", &resto);
+        markets = atoi(tok);
+
+        tok = strtok_r(NULL," ",&resto);
+        balance = atoi(tok);
+
 
         pthread_mutex_lock(&SMV->shm_rdwr);
         //check number of users
@@ -135,9 +141,11 @@ int add_user(char* args, struct sockaddr addr){
                 //empty spot
                 strcpy(SMV->users_list[i].username,username);
                 strcpy(SMV->users_list[i].password,password);
-                //  SMV->users_list[i].balance = balance;
+                SMV->users_list[i].balance = balance;
 
-                //TODO adicionar às bolsas a que tem acesso
+                //adicionar às bolsas a que tem acesso
+                SMV->users_list[i].available_markets[0] = (int)(markets * 0.1) % 10;
+                SMV->users_list[i].available_markets[1] = markets % 10;
 
                 pthread_mutex_unlock(&SMV->shm_rdwr);
 
