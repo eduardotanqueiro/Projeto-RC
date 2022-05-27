@@ -10,15 +10,12 @@ int main(int argc, char** argv){
         exit(1);
     }
 
-    //TODO CTRL+C
+    signal(SIGINT,sigint);
 
-
-    pthread_t wait_clients_thread;
     pthread_create(&wait_clients_thread,NULL,wait_clients,NULL);
     pthread_detach(wait_clients_thread); //TIRAR!!!!
 
     //Thread que dá manage aos valores da bolsa
-    pthread_t thread_bolsa;
     pthread_create(&thread_bolsa,NULL,ManageBolsa,NULL);
     pthread_detach(thread_bolsa); // sim ou não??? mais vale no ctrl+C esperar pela thread
 
@@ -57,19 +54,7 @@ int main(int argc, char** argv){
     printf("[MAIN] Closing server...\n");
 
     //cleanup
-    sigint();
-    // close(fd_bolsa);
-    // close(fd_config);
-    
-    // for(int i = 0; i< NUMBER_MARKETS; i++)
-    //     close(fd_multicast_markets[i]);
-
-    // pthread_mutexattr_destroy(&SMV->attr_mutex);
-    // pthread_mutex_destroy(&SMV->shm_rdwr);
-    // pthread_mutex_destroy(&SMV->market_access);
-
-    // shmdt(SMV);
-    // shmctl(shmid, IPC_RMID, NULL);
+    cleanup();
 
     exit(0);
 }
@@ -146,12 +131,29 @@ void* ManageBolsa(){
     pthread_exit(NULL);
 }
 
+void sigint(){
+
+    printf("^C pressed\n");
+
+    cleanup();
+
+
+    exit(0);
+}
+
 void cleanup(){
 
     //parar a thread da bolsa
+    pthread_cancel(thread_bolsa);
+    pthread_canel(wait_clients_thread);
+    
+    while( wait(NULL) >= 0);
 
     close(fd_bolsa);
     close(fd_config);
+    
+    for(int i = 0; i< NUMBER_MARKETS; i++)
+        close(fd_multicast_markets[i]);
 
     pthread_mutexattr_destroy(&SMV->attr_mutex);
     pthread_mutex_destroy(&SMV->shm_rdwr);
@@ -159,6 +161,8 @@ void cleanup(){
 
     shmdt(SMV);
     shmctl(shmid, IPC_RMID, NULL);
+
+    printf("Server Closing\n");
 
 }
 

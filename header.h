@@ -114,3 +114,6 @@ shm_vars *SMV; //shared memory
 user admin;
 
 int shmid;
+
+pthread_t wait_clients_thread;
+pthread_t thread_bolsa;

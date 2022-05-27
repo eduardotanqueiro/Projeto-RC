@@ -226,7 +226,6 @@ int refresh(char* args, struct sockaddr addr){
         SMV->refresh_time = atoi(args);
         pthread_mutex_unlock(&SMV->shm_rdwr);
     }
-    //TODO enviar mensagens pro user e debug se vier NULL
     
     return 0;
 }
