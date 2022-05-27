@@ -29,6 +29,7 @@ void handle_client(int fd);
 int handle_admin();
 void cleanup();
 void erro(char *s);
+void sigint(int signum);
 
 //Admin
 int add_user(char* args,struct sockaddr addr);
@@ -118,3 +119,6 @@ shm_vars *SMV; //shared memory
 user admin;
 // market* market_list;
 int shmid;
+
+pthread_t thread_bolsa;
+pthread_t wait_clients_thread;

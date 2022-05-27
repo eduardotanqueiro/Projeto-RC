@@ -1,5 +1,5 @@
 #include "header.h"
- 
+
 int main(int argc, char** argv){
 
     if(argc == 4){
@@ -11,14 +11,12 @@ int main(int argc, char** argv){
     }
 
     //TODO CTRL+C
+    signal(SIGINT, sigint);
 
-
-    pthread_t wait_clients_thread;
     pthread_create(&wait_clients_thread,NULL,wait_clients,NULL);
     pthread_detach(wait_clients_thread); //TIRAR!!!!
 
     //Thread que dá manage aos valores da bolsa
-    pthread_t thread_bolsa;
     pthread_create(&thread_bolsa,NULL,ManageBolsa,NULL);
     pthread_detach(thread_bolsa); // sim ou não??? mais vale no ctrl+C esperar pela thread
 
@@ -77,6 +75,12 @@ int main(int argc, char** argv){
     exit(0);
 }
 
+
+void sigint(int signum){
+    printf("^C pressed\n");
+
+    cleanup();
+}
 
 void* ManageBolsa(){
 
@@ -152,6 +156,9 @@ void* ManageBolsa(){
 void cleanup(){
 
     //parar a thread da bolsa
+    void *retval1, *retval2;
+    pthread_join(thread_bolsa, retval1);
+    pthread_join(wait_clients_thread, retval2);
 
     close(fd_bolsa);
     close(fd_config);
