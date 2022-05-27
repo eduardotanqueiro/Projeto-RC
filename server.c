@@ -145,7 +145,7 @@ void cleanup(){
 
     //parar a thread da bolsa
     pthread_cancel(thread_bolsa);
-    pthread_canel(wait_clients_thread);
+    pthread_cancel(wait_clients_thread);
     
     while( wait(NULL) >= 0);
 
