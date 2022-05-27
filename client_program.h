@@ -12,7 +12,7 @@ int feed_on;
 
 //
 int login();
-int ReceiveMarketsInfo();
+void ReceiveMarketsInfo();
 void* HandleStocksUpdates(void* ip_multicast);
 void TalkWithServer();
 void BuyOrSellStock(int mode);

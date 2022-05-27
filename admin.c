@@ -109,7 +109,6 @@ int add_user(char* args, struct sockaddr addr){
     char *tok,*resto,username[31],password[31];
     int balance;
     int markets;
-    //TODO ACABAR
 
 
     if(args != NULL){

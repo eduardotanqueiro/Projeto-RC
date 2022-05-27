@@ -11,7 +11,7 @@ void* wait_clients(){
     FD_ZERO(&read_set);
     FD_SET(fd_bolsa,&read_set);
 
-    signal(SIGINT,sigint_client);
+    signal(SIGINT,sigint);
 
     while(1){
 
@@ -54,14 +54,27 @@ void* wait_clients(){
 
 }
 
-void sigint_client(){
+void sigint(){
 
-    //clear client processes
-    //TODO fazer outra estrategia, fazer um array com os processos abertos! (GLOBAL)
-    for(int i = 0;i<MAX_CLIENTS;i++){
-        kill(SIGINT,childs_pids[i]);
-    }
-    //clear client socket ??
+
+    while( wait(NULL) >= 0);
+
+    close(fd_bolsa);
+    close(fd_config);
+    
+    for(int i = 0; i< NUMBER_MARKETS; i++)
+        close(fd_multicast_markets[i]);
+
+    pthread_mutexattr_destroy(&SMV->attr_mutex);
+    pthread_mutex_destroy(&SMV->shm_rdwr);
+    pthread_mutex_destroy(&SMV->market_access);
+
+    shmdt(SMV);
+    shmctl(shmid, IPC_RMID, NULL);
+
+    printf("Server Closed\n");
+
+    exit(0);
 }
 
 int client_login(int fd){

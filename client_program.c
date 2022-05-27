@@ -15,8 +15,6 @@ int main(int argc, char** argv){
     porto = atoi(argv[2]);
     feed_on = 1;
 
-    //check_feed = PTHREAD_MUTEX_INITIALIZER;
-
 
     strcpy(endServer, argv[1]);
     if ((hostPtr = gethostbyname(endServer)) == 0)
@@ -42,12 +40,11 @@ int main(int argc, char** argv){
 
     //Login
     if( login() == 1){
-        //CLOSE PROGRAM
-        //cleanup
+        exit(1);
     }
 
     //Receive Markets Info
-    int number_markets = ReceiveMarketsInfo();
+    ReceiveMarketsInfo();
 
     //
     TalkWithServer();
@@ -61,7 +58,6 @@ int main(int argc, char** argv){
 int login(){
 
     char buffer[BUFSIZ] = "\0";
-    int nread;
 
     read(fd_server,buffer,BUFSIZ);
     printf("--- %s ---\n",buffer);
@@ -85,7 +81,7 @@ int login(){
     return 0;
 }
 
-int ReceiveMarketsInfo(){
+void ReceiveMarketsInfo(){
 
     int num_markets_access, nread;
     char buffer[BUFSIZ];
@@ -93,11 +89,9 @@ int ReceiveMarketsInfo(){
     //number of markets user has access
     nread = read(fd_server,buffer,BUFSIZ);
 
-    // printf("DEBUG BUFFER %d RECEBIDO MARKETS %s\n",nread,buffer);
 
     num_markets_access = atoi(buffer);
 
-    // printf("debug num markets %d\n",num_markets_access);
 
     for(int i = 0;i<num_markets_access;i++){
         //receive market name
@@ -122,14 +116,12 @@ int ReceiveMarketsInfo(){
         memset(available_markets[i],0,MAX_STRING_SIZES);
     }
 
-
-    return num_markets_access;
 }
 
 void TalkWithServer(){
 
     char buffer[BUFSIZ];
-    int nread,check_input,number_instruction;
+    int check_input,number_instruction;
 
     printf("\n--- MENU ---\n");
     printf("--- 1: SUBSCREVER COTAÇÕES DE MERCADOS ---\n");

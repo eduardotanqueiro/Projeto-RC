@@ -46,11 +46,8 @@ int main(int argc, char** argv){
                     break;
                 }
 
-                printf("[MAIN] a sair do fd isset config\n");
             }
 
-
-            printf("[MAIN] Looping\n");
 
         }
 
@@ -60,19 +57,19 @@ int main(int argc, char** argv){
     printf("[MAIN] Closing server...\n");
 
     //cleanup
-    //cleanup();
-    close(fd_bolsa);
-    close(fd_config);
+    sigint();
+    // close(fd_bolsa);
+    // close(fd_config);
     
-    for(int i = 0; i< NUMBER_MARKETS; i++)
-        close(fd_multicast_markets[i]);
+    // for(int i = 0; i< NUMBER_MARKETS; i++)
+    //     close(fd_multicast_markets[i]);
 
-    pthread_mutexattr_destroy(&SMV->attr_mutex);
-    pthread_mutex_destroy(&SMV->shm_rdwr);
-    pthread_mutex_destroy(&SMV->market_access);
+    // pthread_mutexattr_destroy(&SMV->attr_mutex);
+    // pthread_mutex_destroy(&SMV->shm_rdwr);
+    // pthread_mutex_destroy(&SMV->market_access);
 
-    shmdt(SMV);
-    shmctl(shmid, IPC_RMID, NULL);
+    // shmdt(SMV);
+    // shmctl(shmid, IPC_RMID, NULL);
 
     exit(0);
 }
@@ -232,7 +229,6 @@ void init(int porto_bolsa, int porto_config, char* cfg){
             SMV->users_list[i].user_stocks[j].value = 0;
         }
 
-        //TODO METER OS USERS NOS GRUPOS MULTICAST (SECALHAR NÃO, SÓ METE QUANDO O USER PEDE)
         for(int j = 0;j< NUMBER_MARKETS;j++)
             SMV->users_list[i].available_markets[j] = 1;
     }
@@ -310,7 +306,7 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     if ( bind(fd_bolsa,(struct sockaddr*)&addr_bolsa,sizeof(addr_bolsa)) < 0)
 	  erro("na funcao bind bolsa");
 
-    if( listen(fd_bolsa, 2) < 0)
+    if( listen(fd_bolsa, 1) < 0)
 	  erro("na funcao listen bolsa");
 
     //Multicast Market1

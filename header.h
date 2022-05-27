@@ -36,7 +36,7 @@ int delete_user(char* args,struct sockaddr addr);
 int list(struct sockaddr addr);
 int refresh(char* args,struct sockaddr addr);
 void* wait_clients();
-void sigint_client();
+void sigint();
 
 //User
 int client_login(int fd);
@@ -96,7 +96,6 @@ typedef struct{
 
 typedef struct{
 
-    //TODO ACABAR A SHARED MEMORY
     pthread_mutex_t shm_rdwr;
     pthread_mutexattr_t attr_mutex;
 
@@ -111,10 +110,7 @@ typedef struct{
 } shm_vars;
 
 
-// int refresh_time;
-// int number_users;
-// user users_list[10];
 shm_vars *SMV; //shared memory
 user admin;
-// market* market_list;
+
 int shmid;
