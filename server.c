@@ -13,11 +13,9 @@ int main(int argc, char** argv){
     signal(SIGINT,sigint);
 
     pthread_create(&wait_clients_thread,NULL,wait_clients,NULL);
-    pthread_detach(wait_clients_thread); //TIRAR!!!!
 
     //Thread que dá manage aos valores da bolsa
     pthread_create(&thread_bolsa,NULL,ManageBolsa,NULL);
-    pthread_detach(thread_bolsa); // sim ou não??? mais vale no ctrl+C esperar pela thread
 
     fd_set read_set;
     FD_ZERO(&read_set);
@@ -65,7 +63,7 @@ void* ManageBolsa(){
 
     //Gerar valores aleatórios para as ações
     int sent_value,addrlen = sizeof(addr_multicast_markets[0]),refresh;
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     
     
     while(1){
@@ -79,7 +77,6 @@ void* ManageBolsa(){
             for(int k = 0; k < NUMBER_STOCKS_PER_MARKET; k++){
 
                 //PRICE
-                //TODO CRIAR TREND COM BASE NUM VALOR ALEATÓRIO
                 if(SMV->market_list[i].stock_list[k].value == 0.01)
                     SMV->market_list[i].stock_list[k].value += 0.01;
 
@@ -105,11 +102,11 @@ void* ManageBolsa(){
 
 
                 //CAST NEW VALUES FOR USERS IN MULTICAST GROUP
-                memset(buffer,0,BUFSIZ);
-                snprintf(buffer,BUFSIZ,"--- MARKET: %s | STOCK: %s | PRICE: %f | STOCKS AVAILABLE: %d ---",SMV->market_list[i].name,SMV->market_list[i].stock_list[k].name,SMV->market_list[i].stock_list[k].value,SMV->market_list[i].stock_list[k].num_stocks);
+                memset(buffer,0,BUFFER_SIZE);
+                snprintf(buffer,BUFFER_SIZE,"--- MARKET: %s | STOCK: %s | PRICE: %f | STOCKS AVAILABLE: %d ---",SMV->market_list[i].name,SMV->market_list[i].stock_list[k].name,SMV->market_list[i].stock_list[k].value,SMV->market_list[i].stock_list[k].num_stocks);
                 printf("%s\n",buffer); //debug
 
-                sent_value = sendto(fd_multicast_markets[i], buffer, BUFSIZ, 0, (struct sockaddr *) &addr_multicast_markets[i], addrlen);
+                sent_value = sendto(fd_multicast_markets[i], buffer, BUFFER_SIZE, 0, (struct sockaddr *) &addr_multicast_markets[i], addrlen);
 
                 if(sent_value < 0)
                     perror("SERVER ERROR, SENDTO");
@@ -203,7 +200,7 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     SMV->refresh_time = INITIAL_REFRESH_TIME;
 
     //Read Admin Auth
-    char buf[BUFSIZ],*tok;
+    char buf[BUFFER_SIZE],*tok;
 
     fscanf(initFile,"%[^\n]",&buf[0]);
     
@@ -310,7 +307,7 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     if ( bind(fd_bolsa,(struct sockaddr*)&addr_bolsa,sizeof(addr_bolsa)) < 0)
 	  erro("na funcao bind bolsa");
 
-    if( listen(fd_bolsa, 1) < 0)
+    if( listen(fd_bolsa, MAX_SIMULTANEOUS_USERS) < 0)
 	  erro("na funcao listen bolsa");
 
     //Multicast Market1

@@ -43,6 +43,8 @@ int main(int argc, char** argv){
         exit(1);
     }
 
+    start_socket();
+
     //Receive Markets Info
     ReceiveMarketsInfo();
 
@@ -55,24 +57,26 @@ int main(int argc, char** argv){
     return 0;
 }
 
+
+
 int login(){
 
-    char buffer[BUFSIZ] = "\0";
+    char buffer[BUFFER_SIZE] = "\0";
 
-    read(fd_server,buffer,BUFSIZ);
+    read(fd_server,buffer,BUFFER_SIZE);
     printf("--- %s ---\n",buffer);
 
     while( strcmp(buffer,"Login Bem Sucedido") != 0){
 
-        memset(buffer,0,BUFSIZ);
+        memset(buffer,0,BUFFER_SIZE);
         scanf("%s",buffer);
 
-        write(fd_server,buffer,BUFSIZ);
+        write(fd_server,buffer,BUFFER_SIZE);
 
         if(!strcmp(buffer,"QUIT\n")) //sair sem login
             return 1;
 
-        read(fd_server,buffer,BUFSIZ);
+        read(fd_server,buffer,BUFFER_SIZE);
         printf("--- %s ---\n",buffer);
 
 
@@ -84,29 +88,31 @@ int login(){
 void ReceiveMarketsInfo(){
 
     int num_markets_access, nread;
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
 
     //number of markets user has access
-    nread = read(fd_server,buffer,BUFSIZ);
-
+    nread = read(fd_server,buffer,BUFFER_SIZE);
 
     num_markets_access = atoi(buffer);
+
+    printf("number received markets: %d\n",num_markets_access);
 
 
     for(int i = 0;i<num_markets_access;i++){
         //receive market name
-        memset(buffer,0,BUFSIZ);
-        nread = read(fd_server,buffer,BUFSIZ);
+        memset(buffer,0,BUFFER_SIZE);
+        nread = read(fd_server,buffer,BUFFER_SIZE);
         buffer[nread] = '\0';
 
         strcpy(available_markets[i],buffer);
-        printf("--- MARKET: %s ---\n",buffer);
+        printf("--- MARKET: %s %d---\n",buffer,nread);
 
         //print stocks info
         for(int k = 0;k<NUMBER_STOCKS_PER_MARKET;k++){
-            memset(buffer,0,BUFSIZ);
-            nread = read(fd_server,buffer,BUFSIZ);
-            printf("%s\n",buffer);
+            memset(buffer,0,BUFFER_SIZE);
+            nread = read(fd_server,buffer,BUFFER_SIZE);
+            buffer[nread] = '\0';
+            printf("%s %d\n",buffer,nread);
         }
 
     }
@@ -120,7 +126,7 @@ void ReceiveMarketsInfo(){
 
 void TalkWithServer(){
 
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     int check_input,number_instruction;
 
     printf("\n--- MENU ---\n");
@@ -141,7 +147,7 @@ void TalkWithServer(){
 
             printf("--- INTRODUZA UMA INSTRUÇÃO --- \n");
 
-            memset(buffer,0,BUFSIZ);
+            memset(buffer,0,BUFFER_SIZE);
             scanf("%s",buffer);
 
             number_instruction = atoi(buffer);
@@ -193,8 +199,8 @@ void TalkWithServer(){
 void BuyOrSellStock(int mode){
 
     int check_input = 0;
-    char aux[BUFSIZ-10];
-    char buffer[BUFSIZ];
+    char aux[BUFFER_SIZE-10];
+    char buffer[BUFFER_SIZE];
 
     if (mode == 1)
         strcpy(buffer,"COMPRAR ");
@@ -214,11 +220,11 @@ void BuyOrSellStock(int mode){
     strcat(buffer,aux);
 
     //Send command to server
-    write(fd_server,buffer,BUFSIZ);
+    write(fd_server,buffer,BUFFER_SIZE);
 
     //Receive Response from server
-    memset(buffer,0,BUFSIZ);
-    read(fd_server,buffer,BUFSIZ);
+    memset(buffer,0,BUFFER_SIZE);
+    read(fd_server,buffer,BUFFER_SIZE);
     printf("--- %s ---\n",buffer);
 
 }
@@ -227,8 +233,8 @@ void BuyOrSellStock(int mode){
 void TrySubscribeMarket(){
 
     int check_string = 0;
-    char aux[BUFSIZ - 11];
-    char buffer[BUFSIZ];
+    char aux[BUFFER_SIZE - 11];
+    char buffer[BUFFER_SIZE];
     strcpy(buffer,"SUBSCREVER ");
 
     while( !check_string){
@@ -258,11 +264,13 @@ void TrySubscribeMarket(){
     strcat(buffer,aux);
 
     //Send command to server
-    write(fd_server,buffer,BUFSIZ);
+    write(fd_server,buffer,BUFFER_SIZE);
 
     //Receive response from server
-    memset(buffer,0,BUFSIZ);
-    read(fd_server,buffer,BUFSIZ);
+    memset(buffer,0,BUFFER_SIZE);
+    read(fd_server,buffer,BUFFER_SIZE);
+
+    printf("ip %s\n",buffer);
 
     //Create thread that receives updates from ip received in buffer
     pthread_t market;
@@ -274,18 +282,18 @@ void TrySubscribeMarket(){
 void AskWalletStatus(){
 
 
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     strcpy(buffer,"CARTEIRA");
 
     //Send command to server
-    write(fd_server,buffer,BUFSIZ);
+    write(fd_server,buffer,BUFFER_SIZE);
 
-    memset(buffer,0,BUFSIZ);
+    memset(buffer,0,BUFFER_SIZE);
 
     //Receive response
     while( strcmp(buffer,"FIM") != 0 ){
         
-        read(fd_server,buffer,BUFSIZ);
+        read(fd_server,buffer,BUFFER_SIZE);
         printf("%s\n",buffer);
 
     }
@@ -310,37 +318,54 @@ void ChangeStateFeed(){
 
 }
 
-void* HandleStocksUpdates(void* ip_multicast){
+void start_socket(){
 
-    char* ip_str = (char*) ip_multicast;
-    char buffer[BUFSIZ];
 
-    struct sockaddr_in addr_multicast;
-    int addrlen, socket_multicast, nread,  multicastTTL = 255;
-    struct ip_mreq mreq;
+
+    int multicastTTL = 255;
 
     /* set up socket */ 
     if ((socket_multicast = socket(AF_INET, SOCK_DGRAM, 0)) < 0) { 
         perror("socket error");
-        pthread_exit(NULL);
+        exit(1);
     }
 
     // change socket behavior for multicast connections
     if (setsockopt(socket_multicast, IPPROTO_IP, IP_MULTICAST_TTL, (void *) &multicastTTL, sizeof(multicastTTL)) < 0){ 
         perror("set socket error");
-        pthread_exit(NULL);
+        exit(1);
+    }
+
+    if (setsockopt(socket_multicast, IPPROTO_IP, SO_REUSEADDR, (void *) &multicastTTL, sizeof(multicastTTL)) < 0){ 
+        perror("set socket error");
+        exit(1);
     }
 
     bzero((char *)&addr_multicast, sizeof(addr_multicast)); 
     addr_multicast.sin_family = AF_INET; 
-    addr_multicast.sin_addr.s_addr = inet_addr(ip_str);//htonl(INADDR_ANY); 
+    addr_multicast.sin_addr.s_addr = htonl(INADDR_ANY); //inet_addr(ip_str);
     addr_multicast.sin_port = htons(porto); 
     addrlen = sizeof(addr_multicast);
 
     if (bind(socket_multicast, (struct sockaddr *) &addr_multicast, sizeof(addr_multicast)) < 0) { 
         perror("bind error");
-        pthread_exit(NULL);
+        exit(1);
     }
+
+
+}
+
+void* HandleStocksUpdates(void* ip_multicast){
+
+    char ip_str[10];
+
+    strcpy(ip_str,(char*)ip_multicast);
+    printf("ip %s\n",ip_str);
+
+    char buffer[BUFFER_SIZE];
+
+    int nread;
+    struct ip_mreq mreq;
 
     mreq.imr_multiaddr.s_addr = inet_addr(ip_str); 
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -350,9 +375,9 @@ void* HandleStocksUpdates(void* ip_multicast){
         pthread_exit(NULL);
     }
 
-    while(1){ //TODO end condition
+    while(1){
         
-        nread = recvfrom(socket_multicast,buffer,BUFSIZ,0,(struct sockaddr*) &addr_multicast,(socklen_t *)&addrlen);
+        nread = recvfrom(socket_multicast,buffer,BUFFER_SIZE,0,(struct sockaddr*) &addr_multicast,(socklen_t *)&addrlen);
 
         if(nread < 0){
             perror("recvfrom");

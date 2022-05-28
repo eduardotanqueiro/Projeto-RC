@@ -3,7 +3,7 @@
 
 int handle_admin(){
 
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     int recv_len;
     char comando[50];
     char* token;
@@ -13,7 +13,7 @@ int handle_admin(){
 
     //NETCAT CONNECTING STRINGS (TO IGNORE)
     for(int k = 0;k<5;k++){
-        recvfrom(fd_config, buffer, BUFSIZ, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen);
+        recvfrom(fd_config, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen);
     }
 
     printf("Admin: %s--%s\n",admin.username,admin.password);
@@ -23,9 +23,9 @@ int handle_admin(){
         char username[31];
         char *password;
         
-        memset(buffer,0,BUFSIZ);
+        memset(buffer,0,BUFFER_SIZE);
         sendto(fd_config,"Introduza as credenciais no formato Username/Password: ",56,0,(struct sockaddr*)&admin_connect,(socklen_t )slen);
-        recvfrom(fd_config, buffer, BUFSIZ, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen );
+        recvfrom(fd_config, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen );
         buffer[strlen(buffer) - 1] = 0;
 
         token = strtok(buffer,"/\n");
@@ -60,9 +60,9 @@ int handle_admin(){
 
         //receive messagem from admin console
         printf("\n[ADMIN] Waiting for admin command\n");
-        memset(buffer,0,BUFSIZ);
+        memset(buffer,0,BUFFER_SIZE);
 
-        if( (recv_len = recvfrom(fd_config, buffer, BUFSIZ, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen)) == -1) {
+        if( (recv_len = recvfrom(fd_config, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen)) == -1) {
             erro("Erro no recvfrom\n");
             return 1;
         }
@@ -199,16 +199,16 @@ int delete_user(char* args, struct sockaddr addr){
 
 int list(struct sockaddr addr){
     printf("[ADMIN] Listing users\n");
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     socklen_t slen = sizeof(addr);
 
     pthread_mutex_lock(&SMV->shm_rdwr);
     for(int i = 0;i<MAX_CLIENTS;i++){
 
         if( SMV->users_list[i].username[0] != 0){
-            memset(buffer,0,BUFSIZ);
-            snprintf(buffer,BUFSIZ,"Username: %s\n",SMV->users_list[i].username);
-            sendto(fd_config,buffer,BUFSIZ,0,(struct sockaddr*)&addr,(socklen_t) slen);
+            memset(buffer,0,BUFFER_SIZE);
+            snprintf(buffer,BUFFER_SIZE,"Username: %s\n",SMV->users_list[i].username);
+            sendto(fd_config,buffer,BUFFER_SIZE,0,(struct sockaddr*)&addr,(socklen_t) slen);
 
         }
 

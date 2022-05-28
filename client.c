@@ -36,6 +36,7 @@ void* wait_clients(){
                 else if( (childs_pids[logged_clients++] = fork()) == 0){
                     close(fd_bolsa);
                     close(fd_config);
+                    signal(SIGINT,SIG_DFL);
                     handle_client(client_fd);
                     close(client_fd);
                     exit(0);
@@ -58,16 +59,16 @@ void* wait_clients(){
 int client_login(int fd){
 
     char* token;
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     int number_client = -1;  // check if login succeded
 
     do{
         char username[31];
         char *password;
 
-        memset(buffer,0,BUFSIZ);
+        memset(buffer,0,BUFFER_SIZE);
         write(fd,"Introduza as credenciais no formato Username/Password: ",56);
-        read(fd,buffer,BUFSIZ);
+        read(fd,buffer,BUFFER_SIZE);
         buffer[strlen(buffer)] = 0;
 
         token = strtok(buffer,"/");
@@ -75,7 +76,7 @@ int client_login(int fd){
 
         password = strtok(NULL,"/\n");
 
-        printf("[SERVER] Attempted user:%s login!\n", username);
+        printf("[USER] Attempted user:%s login!\n", username);
 
         if(!strcmp(username, "QUIT")){
             printf("[USER] A fechar processo do user sem login: %d\n", fd);
@@ -111,14 +112,14 @@ int client_login(int fd){
 
 void handle_client(int fd){
 
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     int nread;
     int client_number = client_login(fd); //LOGIN CLIENT
 
 
     if ( client_number != -1){
 
-        usleep(1000);
+        usleep(500000);
         //send client available markets
         send_client_markets(client_number,fd);
 
@@ -131,9 +132,9 @@ void handle_client(int fd){
 
             //receive messagem from user console
             printf("\n[SERVER-USER] Waiting for user command\n");
-            memset(buffer,0,BUFSIZ);
+            memset(buffer,0,BUFFER_SIZE);
 
-            nread = read(fd,buffer,BUFSIZ);
+            nread = read(fd,buffer,BUFFER_SIZE);
 
             if(nread == 0)
                 break;
@@ -178,39 +179,37 @@ void handle_client(int fd){
 void send_client_markets(int client_number,int fd){
 
     int nr_markets = 0;
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
 
     pthread_mutex_lock(&SMV->shm_rdwr);
     for(int i = 0; i<NUMBER_MARKETS;i++)
         if(SMV->users_list[client_number].available_markets[i] == 1)
             nr_markets++;
 
-    // printf("SENDING NUMBER MARKETS FOR CLIENT %d\n",nr_markets);
+    //printf("SENDING NUMBER MARKETS FOR CLIENT %d\n",nr_markets);
 
-    memset(buffer,0,BUFSIZ);
-    snprintf(buffer,BUFSIZ,"%d",nr_markets);
-    // printf("BEFORE SENDING NUM MARKETS %s\n",buffer);
-    write(fd,buffer,BUFSIZ);
+    memset(buffer,0,BUFFER_SIZE);
+    snprintf(buffer,BUFFER_SIZE,"%d",nr_markets);
+    //printf("BEFORE SENDING NUM MARKETS %s\n",buffer);
+    write(fd,buffer,BUFFER_SIZE);
 
-    // printf("SENDING MARKETS FOR CLIENTS\n");
+    //printf("SENDING MARKETS FOR CLIENTS\n");
 
     pthread_mutex_lock(&SMV->market_access);
     for(int i = 0; i<NUMBER_MARKETS;i++){
 
         if(SMV->users_list[client_number].available_markets[i] == 1){ //if user has access to this market
             //send market name
-            memset(buffer,0,BUFSIZ);
-            snprintf(buffer,BUFSIZ,"%s",SMV->market_list[i].name);
-
-            // printf("%s\n",buffer); //DEBUG
-
-            write(fd,buffer,BUFSIZ);
+            memset(buffer,0,BUFFER_SIZE);
+            snprintf(buffer,BUFFER_SIZE,"%s",SMV->market_list[i].name);
+            write(fd,buffer,BUFFER_SIZE);
 
             //send markets' stock info
             for(int j = 0;j<NUMBER_STOCKS_PER_MARKET;j++){
-                memset(buffer,0,BUFSIZ);
-                snprintf(buffer,BUFSIZ,"-- STOCK: %s | PRICE: %f ---",SMV->market_list[i].stock_list[j].name,SMV->market_list[i].stock_list[j].value);
-                write(fd,buffer,BUFSIZ);  
+                memset(buffer,0,BUFFER_SIZE);
+                snprintf(buffer,BUFFER_SIZE,"--- STOCK: %s | PRICE: %f ---",SMV->market_list[i].stock_list[j].name,SMV->market_list[i].stock_list[j].value);
+                //printf("%s\n",buffer); //DEBUG
+                write(fd,buffer,BUFFER_SIZE);  
             }
 
         }
@@ -222,7 +221,7 @@ void send_client_markets(int client_number,int fd){
 }
 
 int buy(char* args,int client_number, int fd){
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     int break_flag = 0;
     
     char *tok, *resto, nome_stock[MAX_STRING_SIZES];
@@ -276,15 +275,15 @@ int buy(char* args,int client_number, int fd){
                 if( SMV->market_list[i].stock_list[k].num_stocks < num_acoes){
 
                     SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].num_stocks =  SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].num_stocks + SMV->market_list[i].stock_list[k].num_stocks;
-                    snprintf(buffer,BUFSIZ,"COMPRADAS %d AÇÕES",SMV->market_list[i].stock_list[k].num_stocks);
+                    snprintf(buffer,BUFFER_SIZE,"COMPRADAS %d AÇÕES",SMV->market_list[i].stock_list[k].num_stocks);
 
                 }else{
 
                     SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].num_stocks =  SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].num_stocks + num_acoes;
-                    snprintf(buffer,BUFSIZ,"AÇÕES COMPRADAS");
+                    snprintf(buffer,BUFFER_SIZE,"AÇÕES COMPRADAS");
 
                 }
-                write(fd,buffer,BUFSIZ);
+                write(fd,buffer,BUFFER_SIZE);
 
                 if( SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].name[0] == 0 )
                     strcpy(SMV->users_list[client_number].user_stocks[ ( (i+1)*(k+1) ) - 1 ].name,nome_stock);
@@ -314,7 +313,7 @@ int buy(char* args,int client_number, int fd){
 }
 
 int sell(char* args,int client_number, int fd){
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
     int break_flag = 0;
     int nr_mercado = -1;
     int nr_stocks_no_mercado;
@@ -376,19 +375,19 @@ int sell(char* args,int client_number, int fd){
             if( nr_stocks_no_mercado < num_acoes){
                 
                 SMV->users_list[client_number].user_stocks[i].num_stocks -= nr_stocks_no_mercado;
-                snprintf(buffer,BUFSIZ,"VENDIDAS %d AÇÕES",nr_stocks_no_mercado);
+                snprintf(buffer,BUFFER_SIZE,"VENDIDAS %d AÇÕES",nr_stocks_no_mercado);
                 SMV->users_list[client_number].balance += nr_stocks_no_mercado*preco;
 
             }
             else{
 
                 SMV->users_list[client_number].user_stocks[i].num_stocks -= num_acoes;
-                snprintf(buffer,BUFSIZ,"AÇÕES VENDIDAS");
+                snprintf(buffer,BUFFER_SIZE,"AÇÕES VENDIDAS");
                 SMV->users_list[client_number].balance += num_acoes*preco;
 
             }
 
-            write(fd,buffer,BUFSIZ);
+            write(fd,buffer,BUFFER_SIZE);
 
             if(SMV->users_list[client_number].user_stocks[i].num_stocks == 0)
                 memset(SMV->users_list[client_number].user_stocks[i].name,0,MAX_STRING_SIZES);
@@ -413,7 +412,7 @@ int sell(char* args,int client_number, int fd){
 
 void subscribe(char* args,int client_number, int fd){
 
-    // char buffer[BUFSIZ];
+    // char buffer[BUFFER_SIZE];
     int market_nr;
 
     pthread_mutex_lock(&SMV->shm_rdwr);
@@ -456,24 +455,24 @@ void subscribe(char* args,int client_number, int fd){
 
 void wallet(int client_number, int fd){
 
-    char buffer[BUFSIZ];
+    char buffer[BUFFER_SIZE];
 
     pthread_mutex_lock(&SMV->shm_rdwr);
-    snprintf(buffer,BUFSIZ,"--- SALDO: %f ---",SMV->users_list[client_number].balance);
-    write(fd,buffer,BUFSIZ);
+    snprintf(buffer,BUFFER_SIZE,"--- SALDO: %f ---",SMV->users_list[client_number].balance);
+    write(fd,buffer,BUFFER_SIZE);
 
     for(int i = 0;i< NUMBER_MARKETS*NUMBER_STOCKS_PER_MARKET;i++){
 
         if( strcmp(SMV->users_list[client_number].user_stocks[i].name,"\0") != 0){
-            snprintf(buffer,BUFSIZ,"--- STOCK: %s | NUMERO STOCKS: %d ---",SMV->users_list[client_number].user_stocks[i].name,SMV->users_list[client_number].user_stocks[i].num_stocks);
-            write(fd,buffer,BUFSIZ);
+            snprintf(buffer,BUFFER_SIZE,"--- STOCK: %s | NUMERO STOCKS: %d ---",SMV->users_list[client_number].user_stocks[i].name,SMV->users_list[client_number].user_stocks[i].num_stocks);
+            write(fd,buffer,BUFFER_SIZE);
         }
 
     }
     pthread_mutex_unlock(&SMV->shm_rdwr);
 
-    snprintf(buffer,BUFSIZ,"FIM");
-    write(fd,buffer,BUFSIZ);
+    snprintf(buffer,BUFFER_SIZE,"FIM");
+    write(fd,buffer,BUFFER_SIZE);
 
 }
 

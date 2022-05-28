@@ -63,6 +63,8 @@ int check_regex(char *text, char *regex);
 #define MULTICAST_MARKET1 "239.0.0.1"
 #define MULTICAST_MARKET2 "239.0.0.2"
 
+#define BUFFER_SIZE 256
+
 
 int fd_bolsa,fd_config;
 int fd_multicast_markets[NUMBER_MARKETS];
