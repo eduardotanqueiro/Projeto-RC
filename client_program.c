@@ -105,14 +105,14 @@ void ReceiveMarketsInfo(){
         buffer[nread] = '\0';
 
         strcpy(available_markets[i],buffer);
-        printf("--- MARKET: %s %d---\n",buffer,nread);
+        printf("--- MARKET: %s ---\n",buffer);
 
         //print stocks info
         for(int k = 0;k<NUMBER_STOCKS_PER_MARKET;k++){
             memset(buffer,0,BUFFER_SIZE);
             nread = read(fd_server,buffer,BUFFER_SIZE);
             buffer[nread] = '\0';
-            printf("%s %d\n",buffer,nread);
+            printf("%s\n",buffer);
         }
 
     }
@@ -179,7 +179,7 @@ void TalkWithServer(){
                     check_input = 1;
                     break;
                 case 6:
-
+                    
                     strcpy(buffer,"SAIR");
                     check_input = 2;
                     break;
@@ -270,11 +270,12 @@ void TrySubscribeMarket(){
     memset(buffer,0,BUFFER_SIZE);
     read(fd_server,buffer,BUFFER_SIZE);
 
-    printf("ip %s\n",buffer);
+    char ip_str[10];
+    strcpy(ip_str,buffer);
 
     //Create thread that receives updates from ip received in buffer
     pthread_t market;
-    pthread_create(&market,NULL,HandleStocksUpdates,(void*)buffer);
+    pthread_create(&market,NULL,HandleStocksUpdates,(void*)ip_str);
     pthread_detach(market);
 
 }
@@ -360,7 +361,6 @@ void* HandleStocksUpdates(void* ip_multicast){
     char ip_str[10];
 
     strcpy(ip_str,(char*)ip_multicast);
-    printf("ip %s\n",ip_str);
 
     char buffer[BUFFER_SIZE];
 

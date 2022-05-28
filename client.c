@@ -5,8 +5,7 @@ void* wait_clients(){
     int client_fd;
     struct sockaddr_in client_addr;
     socklen_t client_addr_size;
-    int logged_clients = 0; //TODO TEM DE ESTAR PARTILHADO PARA OS PROCESSOS FILHOS ACEDEREM E MUDAREM QUANTOS TAO LOGADOS
-
+    int logged_clients = 0; 
     fd_set read_set;
     FD_ZERO(&read_set);
     FD_SET(fd_bolsa,&read_set);
@@ -39,14 +38,13 @@ void* wait_clients(){
                     signal(SIGINT,SIG_DFL);
                     handle_client(client_fd);
                     close(client_fd);
+                    logged_clients--;
                     exit(0);
                 }
 
-                close(client_fd); //???
+                close(client_fd);
             }
 
-            //printf("[MAIN] Looping\n");
-            //CHECK SE ALGUM PROCESSO FECHOU, E DIMINUIR O NUMERO CLIENTES LOGADOS  
 
         }
 
@@ -119,7 +117,7 @@ void handle_client(int fd){
 
     if ( client_number != -1){
 
-        usleep(500000);
+        usleep(1000);
         //send client available markets
         send_client_markets(client_number,fd);
 
@@ -168,7 +166,6 @@ void handle_client(int fd){
 
         }
 
-        //TODO remover dos grupos multicast
         printf("[USER] User left\n");
 
     }
@@ -208,7 +205,6 @@ void send_client_markets(int client_number,int fd){
             for(int j = 0;j<NUMBER_STOCKS_PER_MARKET;j++){
                 memset(buffer,0,BUFFER_SIZE);
                 snprintf(buffer,BUFFER_SIZE,"--- STOCK: %s | PRICE: %f ---",SMV->market_list[i].stock_list[j].name,SMV->market_list[i].stock_list[j].value);
-                //printf("%s\n",buffer); //DEBUG
                 write(fd,buffer,BUFFER_SIZE);  
             }
 
@@ -412,7 +408,6 @@ int sell(char* args,int client_number, int fd){
 
 void subscribe(char* args,int client_number, int fd){
 
-    // char buffer[BUFFER_SIZE];
     int market_nr;
 
     pthread_mutex_lock(&SMV->shm_rdwr);
@@ -476,7 +471,6 @@ void wallet(int client_number, int fd){
 
 }
 
-// TODO meter num ficheiro proos 2
 int check_regex(char *text, char *regex){
 
     regex_t reg;

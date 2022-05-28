@@ -15,8 +15,6 @@ int handle_admin(){
     for(int k = 0;k<5;k++){
         recvfrom(fd_config, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &admin_connect, (socklen_t *)&slen);
     }
-
-    printf("Admin: %s--%s\n",admin.username,admin.password);
     
     //LOGIN
     do{
@@ -36,7 +34,6 @@ int handle_admin(){
         if( password != NULL){
             password[strlen(password)] = '\0';
             printf("[SERVER] Attempted admin login!\n"); 
-            printf("[SERVER] %d--%d\n",strcmp(username,admin.username),strcmp(password,admin.password)); //DEBUG
         }
 
         if( (strcmp(username,admin.username) == 0) && (strcmp(password,admin.password) == 0 ) ){
@@ -66,8 +63,6 @@ int handle_admin(){
             erro("Erro no recvfrom\n");
             return 1;
         }
-
-        //Get Command -- ERRO AQUI, VERIFICAR SE O INPUT ESTÁ CORRETO, PODE DAR SEGFAULT!
 
         char *resto = "";
         memset(comando,0,sizeof(comando));

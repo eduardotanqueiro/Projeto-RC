@@ -36,8 +36,7 @@ int main(int argc, char** argv){
                 printf("[MAIN] SERVER: Admin accepted\n");
                 rt_status = handle_admin();
 
-                if(rt_status == 10){
-                    //kill(wait_clients_pid,SIGINT); TODO MANDAR SINAL PARA AS THREADS ACABAREM!!!   
+                if(rt_status == 10){ 
                     break;
                 }
 
@@ -173,8 +172,6 @@ void init(int porto_bolsa, int porto_config, char* cfg){
         exit(1);
     }
 
-    //TODO
-    //CHECK FILE WITH REGEX EXPRESSION BEFORE READING ANYTHING FOR VARIABLES
 
     //Create Shared Memory
     shmid = shmget(IPC_PRIVATE, sizeof(shm_vars), IPC_CREAT | IPC_EXCL | 0700);
@@ -260,12 +257,6 @@ void init(int porto_bolsa, int porto_config, char* cfg){
         SMV->market_list[1].stock_list[i].num_stocks = 50;
     }
 
-    //DEBUG
-    // for(int i = 0;i<2;i++){
-    //     for(int k = 0;k<3;k++){
-    //         printf("DEUBG %s %s %f\n",&SMV->market_list[i].name[0],&SMV->market_list[i].stock_list[k].name[0],SMV->market_list[i].stock_list[k].value);
-    //     }
-    // }
 
     fclose(initFile);
 
@@ -292,13 +283,6 @@ void init(int porto_bolsa, int porto_config, char* cfg){
     addr_multicast_markets[1].sin_addr.s_addr = inet_addr(MULTICAST_MARKET2);
     addr_multicast_markets[1].sin_port = htons(porto_bolsa);
 
-
-    // char ipStr[INET_ADDRSTRLEN];
-    // inet_ntop(AF_INET,&addr_bolsa,&ipStr[0],INET_ADDRSTRLEN);
-    // printf("[MAIN] SERVER IP BOLSA %s\n",ipStr);
-
-    // inet_ntop(AF_INET,&addr_bolsa,&ipStr[0],INET_ADDRSTRLEN);
-    // printf("[MAIN] SERVER IP CONFIG %s\n", ipStr);
 
     //Socket Bolsa
     if ( (fd_bolsa = socket(AF_INET, SOCK_STREAM, 0)) < 0)
